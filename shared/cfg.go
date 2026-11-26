@@ -1,7 +1,10 @@
 package shared
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -9,72 +12,254 @@ import (
 
 	"github.com/KevinZonda/Panel/models"
 	"github.com/joho/godotenv"
+	"github.com/tailscale/hujson"
 )
+
+const DefaultConfigPath = "/etc/kvzd-panel/config.json"
+
+type fileConfig struct {
+	ListenAddr             *string          `json:"listen_addr"`
+	DatabaseDSN            *string          `json:"database_dsn"`
+	GinMode                *string          `json:"gin_mode"`
+	CorsAllowedOrigins     []string         `json:"cors_allowed_origins"`
+	TrustedProxies         []string         `json:"trusted_proxies"`
+	TokenTTLHours          *int             `json:"token_ttl_hours"`
+	BootstrapAdminUsername *string          `json:"bootstrap_admin_username"`
+	BootstrapAdminPassword *string          `json:"bootstrap_admin_password"`
+	Nginx                  *fileNginxConfig `json:"nginx"`
+}
+
+type fileNginxConfig struct {
+	SitesEnabledDir       *string `json:"sites_enabled_dir"`
+	BackupDir             *string `json:"backup_dir"`
+	ServiceName           *string `json:"service_name"`
+	CommandTimeoutSeconds *int    `json:"command_timeout_seconds"`
+}
 
 func InitCfg() error {
 	_ = godotenv.Load()
 
-	tokenTTLHours := envInt("PANEL_TOKEN_TTL_HOURS", 24)
-	if tokenTTLHours <= 0 {
-		return fmt.Errorf("PANEL_TOKEN_TTL_HOURS must be positive")
+	loaded := defaultConfig()
+	if err := applyConfigFile(loaded); err != nil {
+		return err
+	}
+	if err := applyEnvOverrides(loaded); err != nil {
+		return err
+	}
+	if err := validateConfig(loaded); err != nil {
+		return err
+	}
+	cfg = loaded
+	return nil
+}
+
+func defaultConfig() *models.Config {
+	return &models.Config{
+		ListenAddr:             ":8080",
+		DatabaseDSN:            "file:/var/lib/kvzd-panel/data.db?_foreign_keys=on",
+		GinMode:                "release",
+		CorsAllowedOrigins:     []string{"*"},
+		TrustedProxies:         nil,
+		TokenTTL:               24 * time.Hour,
+		NginxSitesEnabledDir:   "/etc/nginx/sites-enabled",
+		NginxBackupDir:         "/var/lib/kvzd-panel/nginx-backups",
+		NginxServiceName:       "nginx",
+		NginxCommandTimeout:    10 * time.Second,
+		BootstrapAdminUsername: "admin",
+		BootstrapAdminPassword: "",
+	}
+}
+
+func applyConfigFile(cfg *models.Config) error {
+	path := strings.TrimSpace(os.Getenv("PANEL_CONFIG"))
+	explicit := path != ""
+	if !explicit {
+		path = DefaultConfigPath
 	}
 
-	commandTimeoutSeconds := envInt("PANEL_NGINX_COMMAND_TIMEOUT_SECONDS", 10)
-	if commandTimeoutSeconds <= 0 {
-		return fmt.Errorf("PANEL_NGINX_COMMAND_TIMEOUT_SECONDS must be positive")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) && !explicit {
+			return nil
+		}
+		return fmt.Errorf("read config %q: %w", path, err)
 	}
 
-	cfg = &models.Config{
-		ListenAddr:             envString("PANEL_LISTEN_ADDR", ":8080"),
-		DatabaseDSN:            envString("PANEL_DATABASE_DSN", "file:panel.db?_foreign_keys=on"),
-		GinMode:                envString("PANEL_GIN_MODE", "debug"),
-		CorsAllowedOrigins:     envStringSlice("PANEL_CORS_ALLOWED_ORIGINS", []string{"*"}),
-		TrustedProxies:         envStringSlice("PANEL_TRUSTED_PROXIES", nil),
-		TokenTTL:               time.Duration(tokenTTLHours) * time.Hour,
-		NginxSitesEnabledDir:   envString("PANEL_NGINX_SITES_ENABLED_DIR", "/etc/nginx/sites-enabled"),
-		NginxBackupDir:         envString("PANEL_NGINX_BACKUP_DIR", "data/nginx-backups"),
-		NginxServiceName:       envString("PANEL_NGINX_SERVICE_NAME", "nginx"),
-		NginxCommandTimeout:    time.Duration(commandTimeoutSeconds) * time.Second,
-		BootstrapAdminUsername: envString("PANEL_BOOTSTRAP_ADMIN_USERNAME", "admin"),
-		BootstrapAdminPassword: os.Getenv("PANEL_BOOTSTRAP_ADMIN_PASSWORD"),
+	var fc fileConfig
+	if err := decodeJSONC(raw, &fc); err != nil {
+		return fmt.Errorf("parse config %q: %w", path, err)
+	}
+	applyFileConfig(cfg, &fc)
+	return nil
+}
+
+func decodeJSONC(raw []byte, out any) error {
+	standardJSON, err := hujson.Standardize(bytes.Clone(raw))
+	if err != nil {
+		return err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(standardJSON))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(out); err != nil {
+		return err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("config contains multiple JSON values")
+		}
+		return err
 	}
 	return nil
 }
 
-func envString(key, fallback string) string {
-	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
-		return v
+func applyFileConfig(cfg *models.Config, fc *fileConfig) {
+	if fc.ListenAddr != nil {
+		cfg.ListenAddr = strings.TrimSpace(*fc.ListenAddr)
 	}
-	return fallback
-}
-
-func envInt(key string, fallback int) int {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		return fallback
+	if fc.DatabaseDSN != nil {
+		cfg.DatabaseDSN = strings.TrimSpace(*fc.DatabaseDSN)
 	}
-	n, err := strconv.Atoi(v)
-	if err != nil {
-		return fallback
+	if fc.GinMode != nil {
+		cfg.GinMode = strings.TrimSpace(*fc.GinMode)
 	}
-	return n
-}
-
-func envStringSlice(key string, fallback []string) []string {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		return fallback
+	if fc.CorsAllowedOrigins != nil {
+		cfg.CorsAllowedOrigins = trimStrings(fc.CorsAllowedOrigins)
 	}
-	parts := strings.Split(v, ",")
-	items := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			items = append(items, part)
+	if fc.TrustedProxies != nil {
+		cfg.TrustedProxies = trimStrings(fc.TrustedProxies)
+	}
+	if fc.TokenTTLHours != nil {
+		cfg.TokenTTL = time.Duration(*fc.TokenTTLHours) * time.Hour
+	}
+	if fc.BootstrapAdminUsername != nil {
+		cfg.BootstrapAdminUsername = strings.TrimSpace(*fc.BootstrapAdminUsername)
+	}
+	if fc.BootstrapAdminPassword != nil {
+		cfg.BootstrapAdminPassword = *fc.BootstrapAdminPassword
+	}
+	if fc.Nginx != nil {
+		if fc.Nginx.SitesEnabledDir != nil {
+			cfg.NginxSitesEnabledDir = strings.TrimSpace(*fc.Nginx.SitesEnabledDir)
+		}
+		if fc.Nginx.BackupDir != nil {
+			cfg.NginxBackupDir = strings.TrimSpace(*fc.Nginx.BackupDir)
+		}
+		if fc.Nginx.ServiceName != nil {
+			cfg.NginxServiceName = strings.TrimSpace(*fc.Nginx.ServiceName)
+		}
+		if fc.Nginx.CommandTimeoutSeconds != nil {
+			cfg.NginxCommandTimeout = time.Duration(*fc.Nginx.CommandTimeoutSeconds) * time.Second
 		}
 	}
-	if len(items) == 0 {
-		return fallback
+}
+
+func applyEnvOverrides(cfg *models.Config) error {
+	if v, ok := envString("PANEL_LISTEN_ADDR"); ok {
+		cfg.ListenAddr = v
+	}
+	if v, ok := envString("PANEL_DATABASE_DSN"); ok {
+		cfg.DatabaseDSN = v
+	}
+	if v, ok := envString("PANEL_GIN_MODE"); ok {
+		cfg.GinMode = v
+	}
+	if v, ok := envStringSlice("PANEL_CORS_ALLOWED_ORIGINS"); ok {
+		cfg.CorsAllowedOrigins = v
+	}
+	if v, ok := envStringSlice("PANEL_TRUSTED_PROXIES"); ok {
+		cfg.TrustedProxies = v
+	}
+	if v, ok, err := envInt("PANEL_TOKEN_TTL_HOURS"); err != nil {
+		return err
+	} else if ok {
+		cfg.TokenTTL = time.Duration(v) * time.Hour
+	}
+	if v, ok := envString("PANEL_BOOTSTRAP_ADMIN_USERNAME"); ok {
+		cfg.BootstrapAdminUsername = v
+	}
+	if v, ok := envString("PANEL_BOOTSTRAP_ADMIN_PASSWORD"); ok {
+		cfg.BootstrapAdminPassword = v
+	}
+	if v, ok := envString("PANEL_NGINX_SITES_ENABLED_DIR"); ok {
+		cfg.NginxSitesEnabledDir = v
+	}
+	if v, ok := envString("PANEL_NGINX_BACKUP_DIR"); ok {
+		cfg.NginxBackupDir = v
+	}
+	if v, ok := envString("PANEL_NGINX_SERVICE_NAME"); ok {
+		cfg.NginxServiceName = v
+	}
+	if v, ok, err := envInt("PANEL_NGINX_COMMAND_TIMEOUT_SECONDS"); err != nil {
+		return err
+	} else if ok {
+		cfg.NginxCommandTimeout = time.Duration(v) * time.Second
+	}
+	return nil
+}
+
+func validateConfig(cfg *models.Config) error {
+	if cfg.ListenAddr == "" {
+		return fmt.Errorf("listen_addr must not be empty")
+	}
+	if cfg.DatabaseDSN == "" {
+		return fmt.Errorf("database_dsn must not be empty")
+	}
+	switch cfg.GinMode {
+	case "debug", "release", "test":
+	default:
+		return fmt.Errorf("gin_mode must be one of debug, release, test")
+	}
+	if cfg.TokenTTL <= 0 {
+		return fmt.Errorf("token_ttl_hours must be positive")
+	}
+	if cfg.NginxSitesEnabledDir == "" {
+		return fmt.Errorf("nginx.sites_enabled_dir must not be empty")
+	}
+	if cfg.NginxBackupDir == "" {
+		return fmt.Errorf("nginx.backup_dir must not be empty")
+	}
+	if cfg.NginxServiceName == "" {
+		return fmt.Errorf("nginx.service_name must not be empty")
+	}
+	if cfg.NginxCommandTimeout <= 0 {
+		return fmt.Errorf("nginx.command_timeout_seconds must be positive")
+	}
+	return nil
+}
+
+func envString(key string) (string, bool) {
+	v := strings.TrimSpace(os.Getenv(key))
+	return v, v != ""
+}
+
+func envInt(key string) (int, bool, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return 0, false, nil
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, true, fmt.Errorf("%s must be an integer: %w", key, err)
+	}
+	return n, true, nil
+}
+
+func envStringSlice(key string) ([]string, bool) {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return nil, false
+	}
+	return trimStrings(strings.Split(v, ",")), true
+}
+
+func trimStrings(values []string) []string {
+	items := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			items = append(items, value)
+		}
 	}
 	return items
 }

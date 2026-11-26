@@ -1,4 +1,5 @@
 .env
+/config.json
 panel.db
 panel.db-*
 data/

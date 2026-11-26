@@ -1,0 +1,21 @@
+{
+  // Copy this file to /etc/kvzd-panel/config.json and adjust it for your server.
+  "listen_addr": ":8080",
+  "database_dsn": "file:/var/lib/kvzd-panel/data.db?_foreign_keys=on",
+  "gin_mode": "release",
+
+  "cors_allowed_origins": ["*"],
+  "trusted_proxies": [],
+  "token_ttl_hours": 24,
+
+  // Required only when creating the first admin user.
+  "bootstrap_admin_username": "admin",
+  "bootstrap_admin_password": "",
+
+  "nginx": {
+    "sites_enabled_dir": "/etc/nginx/sites-enabled",
+    "backup_dir": "/var/lib/kvzd-panel/nginx-backups",
+    "service_name": "nginx",
+    "command_timeout_seconds": 10,
+  },
+}

@@ -9,6 +9,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/sirupsen/logrus v1.10.2
+	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd
 	github.com/ulule/limiter/v3 v3.11.2
 	golang.org/x/crypto v0.58.0
 	gorm.io/driver/sqlite v1.6.0
