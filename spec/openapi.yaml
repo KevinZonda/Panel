@@ -1,0 +1,1056 @@
+openapi: 3.0.3
+
+info:
+  title: Panel API
+  version: 0.1.0
+  description: |
+    管理面板 API，提供系统状态查看、Nginx 状态与控制、sites-enabled 配置管理、用户登录与用户管理能力。
+
+    认证方式：除登录接口外，所有接口都需要在请求头中携带：
+
+    `Authorization: Bearer <token>`
+
+servers:
+  - url: /api/v1
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+    description: 认证与当前用户
+  - name: users
+    description: 用户管理，仅 admin 可用
+  - name: system
+    description: CPU、内存和系统状态
+  - name: nginx
+    description: Nginx 状态、操作和配置管理
+
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: 用户登录
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: 退出登录
+      operationId: logout
+      responses:
+        '204':
+          description: 退出成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: 获取当前登录用户
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: 当前用户信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/change-password:
+    post:
+      tags: [auth]
+      summary: 修改当前用户密码
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: 密码修改成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users:
+    get:
+      tags: [users]
+      summary: 获取用户列表
+      operationId: listUsers
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: keyword
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 用户列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags: [users]
+      summary: 创建用户
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: 用户创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+
+    get:
+      tags: [users]
+      summary: 获取用户详情
+      operationId: getUser
+      responses:
+        '200':
+          description: 用户详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [users]
+      summary: 更新用户
+      operationId: updateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: 更新后的用户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags: [users]
+      summary: 删除用户
+      operationId: deleteUser
+      responses:
+        '204':
+          description: 删除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/{id}/reset-password:
+    post:
+      tags: [users]
+      summary: 重置用户密码
+      operationId: resetUserPassword
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '204':
+          description: 密码重置成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /system/status:
+    get:
+      tags: [system]
+      summary: 获取系统状态总览
+      operationId: getSystemStatus
+      responses:
+        '200':
+          description: 系统状态总览
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /system/cpu:
+    get:
+      tags: [system]
+      summary: 获取 CPU 状态
+      operationId: getCpuStatus
+      parameters:
+        - name: interval_ms
+          in: query
+          description: CPU 使用率采样间隔，单位毫秒
+          schema:
+            type: integer
+            minimum: 100
+            maximum: 5000
+            default: 500
+      responses:
+        '200':
+          description: CPU 状态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CpuStatus'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /system/memory:
+    get:
+      tags: [system]
+      summary: 获取内存状态
+      operationId: getMemoryStatus
+      responses:
+        '200':
+          description: 内存状态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /nginx/status:
+    get:
+      tags: [nginx]
+      summary: 获取 Nginx 状态
+      operationId: getNginxStatus
+      responses:
+        '200':
+          description: Nginx 状态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NginxStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /nginx/actions:
+    post:
+      tags: [nginx]
+      summary: 执行 Nginx 操作
+      description: |
+        执行 start、stop、reload 或 restart。
+
+        如果 nginx 命令本身执行失败，API 仍可能返回 200，但响应中的 `ok` 为 `false`。
+        参数错误、认证失败或权限不足仍返回对应 4xx。
+      operationId: executeNginxAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NginxActionRequest'
+      responses:
+        '200':
+          description: Nginx 操作执行结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NginxActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /nginx/config/test:
+    post:
+      tags: [nginx]
+      summary: 测试 Nginx 配置
+      description: 执行 nginx -t，不修改任何配置。
+      operationId: testNginxConfig
+      responses:
+        '200':
+          description: 配置测试结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NginxConfigTestResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /nginx/sites:
+    get:
+      tags: [nginx]
+      summary: 获取 sites-enabled 配置列表
+      operationId: listNginxSites
+      responses:
+        '200':
+          description: 配置列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NginxSiteList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [nginx]
+      summary: 创建 sites-enabled 配置
+      operationId: createNginxSite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNginxSiteRequest'
+      responses:
+        '201':
+          description: 配置创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NginxSiteMutationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /nginx/sites/{name}:
+    parameters:
+      - $ref: '#/components/parameters/NginxSiteName'
+
+    get:
+      tags: [nginx]
+      summary: 读取 sites-enabled 配置
+      operationId: getNginxSite
+      responses:
+        '200':
+          description: 配置内容
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NginxSite'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [nginx]
+      summary: 更新 sites-enabled 配置
+      operationId: updateNginxSite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNginxSiteRequest'
+      responses:
+        '200':
+          description: 配置更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NginxSiteMutationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags: [nginx]
+      summary: 删除 sites-enabled 配置
+      operationId: deleteNginxSite
+      responses:
+        '204':
+          description: 删除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token
+      description: 登录接口返回的 bearer token
+
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: 用户 ID
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    NginxSiteName:
+      name: name
+      in: path
+      required: true
+      description: sites-enabled 中的文件名，只允许字母、数字、点、下划线和中划线
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[A-Za-z0-9._-]+$'
+      example: example.com.conf
+
+  responses:
+    BadRequest:
+      description: 参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INVALID_ARGUMENT
+              message: invalid request argument
+              details:
+                field: name
+
+    Unauthorized:
+      description: 未认证或 token 无效
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: authentication required
+              details: {}
+
+    Forbidden:
+      description: 权限不足或账户被禁用
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: FORBIDDEN
+              message: permission denied
+              details: {}
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: NOT_FOUND
+              message: resource not found
+              details: {}
+
+    Conflict:
+      description: 资源冲突
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: CONFLICT
+              message: resource already exists
+              details: {}
+
+    RateLimited:
+      description: 请求过于频繁
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: RATE_LIMITED
+              message: too many login attempts
+              details: {}
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - INVALID_ARGUMENT
+                - UNAUTHORIZED
+                - FORBIDDEN
+                - NOT_FOUND
+                - CONFLICT
+                - RATE_LIMITED
+                - INTERNAL_ERROR
+                - DEPENDENCY_ERROR
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+
+    UserRole:
+      type: string
+      enum: [admin, viewer]
+
+    UserStatus:
+      type: string
+      enum: [active, disabled]
+
+    User:
+      type: object
+      required: [id, username, role, status, created_at, updated_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    UserList:
+      type: object
+      required: [items, page, page_size, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+          format: int64
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 1
+          maxLength: 256
+          format: password
+
+    LoginResponse:
+      type: object
+      required: [token, token_type, expires_at, user]
+      properties:
+        token:
+          type: string
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_at:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/User'
+
+    ChangePasswordRequest:
+      type: object
+      required: [old_password, new_password]
+      properties:
+        old_password:
+          type: string
+          format: password
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 256
+          format: password
+
+    CreateUserRequest:
+      type: object
+      required: [username, password, role, status]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Za-z0-9._-]+$'
+        password:
+          type: string
+          minLength: 8
+          maxLength: 256
+          format: password
+        role:
+          $ref: '#/components/schemas/UserRole'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Za-z0-9._-]+$'
+        role:
+          $ref: '#/components/schemas/UserRole'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+
+    ResetPasswordRequest:
+      type: object
+      required: [new_password]
+      properties:
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 256
+          format: password
+
+    LoadAverage:
+      type: object
+      required: ['1m', '5m', '15m']
+      properties:
+        1m:
+          type: number
+        5m:
+          type: number
+        15m:
+          type: number
+
+    CpuStatus:
+      type: object
+      required: [usage_percent, cores, sample_interval_ms, collected_at]
+      properties:
+        usage_percent:
+          type: number
+          minimum: 0
+          maximum: 100
+        cores:
+          type: integer
+          minimum: 1
+        per_core_percent:
+          type: array
+          items:
+            type: number
+            minimum: 0
+            maximum: 100
+        load_average:
+          $ref: '#/components/schemas/LoadAverage'
+        sample_interval_ms:
+          type: integer
+        collected_at:
+          type: string
+          format: date-time
+
+    SwapStatus:
+      type: object
+      required: [total_bytes, used_bytes, free_bytes, usage_percent]
+      properties:
+        total_bytes:
+          type: integer
+          format: int64
+        used_bytes:
+          type: integer
+          format: int64
+        free_bytes:
+          type: integer
+          format: int64
+        usage_percent:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    MemoryStatus:
+      type: object
+      required:
+        - total_bytes
+        - used_bytes
+        - free_bytes
+        - available_bytes
+        - usage_percent
+        - swap
+        - collected_at
+      properties:
+        total_bytes:
+          type: integer
+          format: int64
+        used_bytes:
+          type: integer
+          format: int64
+        free_bytes:
+          type: integer
+          format: int64
+        available_bytes:
+          type: integer
+          format: int64
+        usage_percent:
+          type: number
+          minimum: 0
+          maximum: 100
+        swap:
+          $ref: '#/components/schemas/SwapStatus'
+        collected_at:
+          type: string
+          format: date-time
+
+    SystemStatus:
+      type: object
+      required: [cpu, memory, uptime_seconds, collected_at]
+      properties:
+        cpu:
+          type: object
+          required: [usage_percent, cores]
+          properties:
+            usage_percent:
+              type: number
+              minimum: 0
+              maximum: 100
+            cores:
+              type: integer
+            load_average:
+              $ref: '#/components/schemas/LoadAverage'
+        memory:
+          type: object
+          required: [total_bytes, used_bytes, available_bytes, usage_percent]
+          properties:
+            total_bytes:
+              type: integer
+              format: int64
+            used_bytes:
+              type: integer
+              format: int64
+            available_bytes:
+              type: integer
+              format: int64
+            usage_percent:
+              type: number
+        uptime_seconds:
+          type: integer
+          format: int64
+        collected_at:
+          type: string
+          format: date-time
+
+    NginxServiceStatus:
+      type: object
+      required: [manager]
+      properties:
+        manager:
+          type: string
+          enum: [systemd, process, unknown]
+        active_state:
+          type: string
+          nullable: true
+        sub_state:
+          type: string
+          nullable: true
+
+    NginxConfigTestResult:
+      type: object
+      required: [ok, exit_code, output, duration_ms, checked_at]
+      properties:
+        ok:
+          type: boolean
+        exit_code:
+          type: integer
+        output:
+          type: string
+          description: nginx -t 输出，服务端应截断到合理长度，例如 4KB
+        duration_ms:
+          type: integer
+          format: int64
+        checked_at:
+          type: string
+          format: date-time
+
+    NginxStatus:
+      type: object
+      required: [installed, running, checked_at]
+      properties:
+        installed:
+          type: boolean
+        running:
+          type: boolean
+        pid:
+          type: integer
+          nullable: true
+        version:
+          type: string
+          nullable: true
+        service:
+          $ref: '#/components/schemas/NginxServiceStatus'
+        config_test:
+          $ref: '#/components/schemas/NginxConfigTestResult'
+        checked_at:
+          type: string
+          format: date-time
+
+    NginxAction:
+      type: string
+      enum: [start, stop, reload, restart]
+
+    NginxActionRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          $ref: '#/components/schemas/NginxAction'
+
+    NginxActionStatus:
+      type: object
+      required: [installed, running]
+      properties:
+        installed:
+          type: boolean
+        running:
+          type: boolean
+        pid:
+          type: integer
+          nullable: true
+
+    NginxActionResponse:
+      type: object
+      required: [action, ok, exit_code, output, duration_ms, finished_at, status]
+      properties:
+        action:
+          $ref: '#/components/schemas/NginxAction'
+        ok:
+          type: boolean
+        exit_code:
+          type: integer
+        output:
+          type: string
+        duration_ms:
+          type: integer
+          format: int64
+        finished_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/NginxActionStatus'
+
+    NginxSiteName:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: '^[A-Za-z0-9._-]+$'
+
+    NginxSiteSummary:
+      type: object
+      required: [name, size_bytes, modified_at, sha256]
+      properties:
+        name:
+          $ref: '#/components/schemas/NginxSiteName'
+        size_bytes:
+          type: integer
+          format: int64
+        modified_at:
+          type: string
+          format: date-time
+        sha256:
+          type: string
+
+    NginxSite:
+      allOf:
+        - $ref: '#/components/schemas/NginxSiteSummary'
+        - type: object
+          required: [content]
+          properties:
+            content:
+              type: string
+              maxLength: 1048576
+
+    NginxSiteList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NginxSiteSummary'
+
+    NginxValidationResult:
+      type: object
+      required: [ok, output]
+      properties:
+        ok:
+          type: boolean
+        output:
+          type: string
+
+    CreateNginxSiteRequest:
+      type: object
+      required: [name, content]
+      properties:
+        name:
+          $ref: '#/components/schemas/NginxSiteName'
+        content:
+          type: string
+          maxLength: 1048576
+        validate:
+          type: boolean
+          default: true
+
+    UpdateNginxSiteRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          maxLength: 1048576
+        validate:
+          type: boolean
+          default: true
+        expected_sha256:
+          type: string
+          description: 可选。如果提供，必须和当前文件 sha256 一致，否则返回 409。
+
+    NginxSiteMutationResult:
+      type: object
+      required: [name, size_bytes, modified_at, sha256, validation]
+      properties:
+        name:
+          $ref: '#/components/schemas/NginxSiteName'
+        size_bytes:
+          type: integer
+          format: int64
+        modified_at:
+          type: string
+          format: date-time
+        sha256:
+          type: string
+        validation:
+          $ref: '#/components/schemas/NginxValidationResult'

@@ -1,0 +1,70 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/KevinZonda/Panel/domain"
+	"github.com/KevinZonda/Panel/shared"
+	"github.com/sirupsen/logrus"
+)
+
+func main() {
+	logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+
+	if err := shared.InitCfg(); err != nil {
+		logrus.WithError(err).Fatal("init config failed")
+	}
+	if err := shared.InitSvcs(); err != nil {
+		logrus.WithError(err).Fatal("init services failed")
+	}
+
+	cfg, err := shared.GetConfig()
+	if err != nil {
+		logrus.WithError(err).Fatal("get config failed")
+	}
+	db, err := shared.GetDB()
+	if err != nil {
+		logrus.WithError(err).Fatal("get database failed")
+	}
+	engine, err := shared.GetGinEngine()
+	if err != nil {
+		logrus.WithError(err).Fatal("get gin engine failed")
+	}
+
+	if err := domain.InitRoute(engine, db, cfg); err != nil {
+		logrus.WithError(err).Fatal("init routes failed")
+	}
+
+	server := &http.Server{
+		Addr:              cfg.ListenAddr,
+		Handler:           engine,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	go func() {
+		logrus.WithField("addr", cfg.ListenAddr).Info("panel server started")
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logrus.WithError(err).Fatal("panel server failed")
+		}
+	}()
+
+	stop, stopNotify := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopNotify()
+	<-stop.Done()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		logrus.WithError(err).Error("shutdown server failed")
+	}
+	if err := shared.CloseDB(); err != nil {
+		logrus.WithError(err).Error("close database failed")
+	}
+	logrus.Info("panel server stopped")
+}

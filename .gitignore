@@ -1,0 +1,7 @@
+.env
+panel.db
+panel.db-*
+data/
+bin/
+dist/
+coverage.out
