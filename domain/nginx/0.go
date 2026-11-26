@@ -12,6 +12,7 @@ type Params struct {
 	SitesEnabledDir string
 	BackupDir       string
 	ServiceName     string
+	ControlMode     string
 	CommandTimeout  time.Duration
 	Executor        processx.Executor
 }
@@ -30,6 +31,7 @@ func New(params Params) (*Domain, error) {
 		params.SitesEnabledDir,
 		params.BackupDir,
 		params.ServiceName,
+		params.ControlMode,
 		params.CommandTimeout,
 		executor,
 	)

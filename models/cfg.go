@@ -2,6 +2,11 @@ package models
 
 import "time"
 
+const (
+	NginxControlModeSystemd = "systemd"
+	NginxControlModeBinary  = "binary"
+)
+
 type Config struct {
 	ListenAddr             string
 	DatabaseDSN            string
@@ -12,6 +17,7 @@ type Config struct {
 	NginxSitesEnabledDir   string
 	NginxBackupDir         string
 	NginxServiceName       string
+	NginxControlMode       string
 	NginxCommandTimeout    time.Duration
 	BootstrapAdminUsername string
 	BootstrapAdminPassword string

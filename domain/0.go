@@ -38,6 +38,7 @@ func InitRoute(engine *gin.Engine, db *gorm.DB, cfg *models.Config) error {
 		SitesEnabledDir: cfg.NginxSitesEnabledDir,
 		BackupDir:       cfg.NginxBackupDir,
 		ServiceName:     cfg.NginxServiceName,
+		ControlMode:     cfg.NginxControlMode,
 		CommandTimeout:  cfg.NginxCommandTimeout,
 	})
 	if err != nil {

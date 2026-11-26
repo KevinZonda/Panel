@@ -16,6 +16,9 @@
     "sites_enabled_dir": "/etc/nginx/sites-enabled",
     "backup_dir": "/var/lib/kvzd-panel/nginx-backups",
     "service_name": "nginx",
+    // "systemd" uses systemctl; "binary" controls nginx through its own
+    // signals and works without any init system (containers, Alpine, BSD).
+    "control_mode": "systemd",
     "command_timeout_seconds": 10,
   },
 }

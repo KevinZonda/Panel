@@ -1,0 +1,17 @@
+services:
+  panel:
+    build: .
+    # tini as PID 1 reaps nginx worker zombies; nginx self-daemonizes.
+    init: true
+    ports:
+      - "8080:8080"   # panel UI / API
+      - "8081:80"     # nginx demo site
+    volumes:
+      - panel-data:/var/lib/kvzd-panel
+    environment:
+      # Dev-only bootstrap credentials. Override before exposing anywhere.
+      PANEL_BOOTSTRAP_ADMIN_PASSWORD: ${PANEL_ADMIN_PASSWORD:-admin123456}
+    restart: unless-stopped
+
+volumes:
+  panel-data:

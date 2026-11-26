@@ -1,0 +1,15 @@
+{
+  // Development container configuration.
+  // Nginx runs without systemd here, so the panel controls it through
+  // nginx's own signals.
+  "listen_addr": ":8080",
+  "database_dsn": "file:/var/lib/kvzd-panel/data.db?_foreign_keys=on",
+  "gin_mode": "release",
+  "nginx": {
+    "sites_enabled_dir": "/etc/nginx/sites-enabled",
+    "backup_dir": "/var/lib/kvzd-panel/nginx-backups",
+    "service_name": "nginx",
+    "control_mode": "binary",
+    "command_timeout_seconds": 10,
+  },
+}

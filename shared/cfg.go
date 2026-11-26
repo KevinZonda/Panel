@@ -33,6 +33,7 @@ type fileNginxConfig struct {
 	SitesEnabledDir       *string `json:"sites_enabled_dir"`
 	BackupDir             *string `json:"backup_dir"`
 	ServiceName           *string `json:"service_name"`
+	ControlMode           *string `json:"control_mode"`
 	CommandTimeoutSeconds *int    `json:"command_timeout_seconds"`
 }
 
@@ -64,6 +65,7 @@ func defaultConfig() *models.Config {
 		NginxSitesEnabledDir:   "/etc/nginx/sites-enabled",
 		NginxBackupDir:         "/var/lib/kvzd-panel/nginx-backups",
 		NginxServiceName:       "nginx",
+		NginxControlMode:       models.NginxControlModeSystemd,
 		NginxCommandTimeout:    10 * time.Second,
 		BootstrapAdminUsername: "admin",
 		BootstrapAdminPassword: "",
@@ -148,6 +150,9 @@ func applyFileConfig(cfg *models.Config, fc *fileConfig) {
 		if fc.Nginx.ServiceName != nil {
 			cfg.NginxServiceName = strings.TrimSpace(*fc.Nginx.ServiceName)
 		}
+		if fc.Nginx.ControlMode != nil {
+			cfg.NginxControlMode = strings.TrimSpace(*fc.Nginx.ControlMode)
+		}
 		if fc.Nginx.CommandTimeoutSeconds != nil {
 			cfg.NginxCommandTimeout = time.Duration(*fc.Nginx.CommandTimeoutSeconds) * time.Second
 		}
@@ -190,6 +195,9 @@ func applyEnvOverrides(cfg *models.Config) error {
 	if v, ok := envString("PANEL_NGINX_SERVICE_NAME"); ok {
 		cfg.NginxServiceName = v
 	}
+	if v, ok := envString("PANEL_NGINX_CONTROL_MODE"); ok {
+		cfg.NginxControlMode = v
+	}
 	if v, ok, err := envInt("PANEL_NGINX_COMMAND_TIMEOUT_SECONDS"); err != nil {
 		return err
 	} else if ok {
@@ -221,6 +229,11 @@ func validateConfig(cfg *models.Config) error {
 	}
 	if cfg.NginxServiceName == "" {
 		return fmt.Errorf("nginx.service_name must not be empty")
+	}
+	switch cfg.NginxControlMode {
+	case models.NginxControlModeSystemd, models.NginxControlModeBinary:
+	default:
+		return fmt.Errorf("nginx.control_mode must be one of systemd, binary")
 	}
 	if cfg.NginxCommandTimeout <= 0 {
 		return fmt.Errorf("nginx.command_timeout_seconds must be positive")

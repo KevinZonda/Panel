@@ -11,6 +11,7 @@ import (
 	"github.com/KevinZonda/Panel/domain/nginx/svc"
 	"github.com/KevinZonda/Panel/lib/apperr"
 	"github.com/KevinZonda/Panel/lib/processx"
+	"github.com/KevinZonda/Panel/models"
 )
 
 type fakeExecutor struct {
@@ -25,7 +26,7 @@ func TestSiteCRUDWithoutValidation(t *testing.T) {
 	root := t.TempDir()
 	sitesDir := filepath.Join(root, "sites-enabled")
 	backupDir := filepath.Join(root, "backups")
-	service := svc.NewService(sitesDir, backupDir, "nginx", time.Second, fakeExecutor{})
+	service := svc.NewService(sitesDir, backupDir, "nginx", "", time.Second, fakeExecutor{})
 
 	created, err := service.CreateSite(context.Background(), "example.com.conf", "server { listen 80; }\n", false)
 	if err != nil {
@@ -79,7 +80,7 @@ func TestValidationFailureRollsBack(t *testing.T) {
 	sitesDir := filepath.Join(root, "sites-enabled")
 	backupDir := filepath.Join(root, "backups")
 	badExecutor := fakeExecutor{result: processx.Result{ExitCode: 1, Output: "bad config"}}
-	service := svc.NewService(sitesDir, backupDir, "nginx", time.Second, badExecutor)
+	service := svc.NewService(sitesDir, backupDir, "nginx", "", time.Second, badExecutor)
 
 	_, err := service.CreateSite(context.Background(), "example.com.conf", "bad nginx config", true)
 	if !errors.Is(err, apperr.ErrValidation) {
@@ -111,7 +112,7 @@ func TestValidationFailureRollsBack(t *testing.T) {
 }
 
 func TestInvalidSiteName(t *testing.T) {
-	service := svc.NewService(t.TempDir(), t.TempDir(), "nginx", time.Second, fakeExecutor{})
+	service := svc.NewService(t.TempDir(), t.TempDir(), "nginx", "", time.Second, fakeExecutor{})
 	if _, err := service.CreateSite(context.Background(), "../evil.conf", "", false); !errors.Is(err, apperr.ErrValidation) {
 		t.Fatalf("expected validation error, got %v", err)
 	}
@@ -137,7 +138,7 @@ func TestUpdateSitePreservesSymlink(t *testing.T) {
 		t.Fatalf("create symlink: %v", err)
 	}
 
-	service := svc.NewService(sitesDir, filepath.Join(root, "backups"), "nginx", time.Second, fakeExecutor{})
+	service := svc.NewService(sitesDir, filepath.Join(root, "backups"), "nginx", "", time.Second, fakeExecutor{})
 	site, err := service.GetSite("example.com.conf")
 	if err != nil {
 		t.Fatalf("get site: %v", err)
@@ -159,5 +160,104 @@ func TestUpdateSitePreservesSymlink(t *testing.T) {
 	}
 	if string(content) != "server { listen 81; }\n" {
 		t.Fatalf("unexpected target content: %q", string(content))
+	}
+}
+
+type recordedCall struct {
+	name string
+	args []string
+}
+
+type recordingExecutor struct {
+	calls  []recordedCall
+	result processx.Result
+}
+
+func (r *recordingExecutor) Run(_ context.Context, name string, args ...string) processx.Result {
+	r.calls = append(r.calls, recordedCall{name: name, args: args})
+	return r.result
+}
+
+func TestSystemdModeUsesSystemctl(t *testing.T) {
+	executor := &recordingExecutor{}
+	service := svc.NewService(t.TempDir(), t.TempDir(), "nginx", models.NginxControlModeSystemd, time.Second, executor)
+
+	for _, action := range []string{"start", "stop", "reload", "restart"} {
+		executor.calls = nil
+		if _, err := service.Action(context.Background(), action); err != nil {
+			t.Fatalf("action %s: %v", action, err)
+		}
+		if len(executor.calls) == 0 || executor.calls[0].name != "systemctl" {
+			t.Fatalf("action %s: expected systemctl call, got %#v", action, executor.calls)
+		}
+		if len(executor.calls[0].args) != 2 || executor.calls[0].args[0] != action || executor.calls[0].args[1] != "nginx" {
+			t.Fatalf("action %s: unexpected systemctl args %#v", action, executor.calls[0].args)
+		}
+	}
+}
+
+func TestBinaryModeUsesNginxBinary(t *testing.T) {
+	executor := &recordingExecutor{}
+	service := svc.NewService(t.TempDir(), t.TempDir(), "nginx", models.NginxControlModeBinary, time.Second, executor)
+
+	cases := []struct {
+		action string
+		args   []string
+	}{
+		{"start", nil},
+		{"stop", []string{"-s", "quit"}},
+		{"reload", []string{"-s", "reload"}},
+	}
+	for _, tc := range cases {
+		executor.calls = nil
+		if _, err := service.Action(context.Background(), tc.action); err != nil {
+			t.Fatalf("action %s: %v", tc.action, err)
+		}
+		if len(executor.calls) == 0 || executor.calls[0].name != "nginx" {
+			t.Fatalf("action %s: expected nginx call, got %#v", tc.action, executor.calls)
+		}
+		if len(executor.calls[0].args) != len(tc.args) {
+			t.Fatalf("action %s: unexpected args %#v", tc.action, executor.calls[0].args)
+		}
+		for i := range tc.args {
+			if executor.calls[0].args[i] != tc.args[i] {
+				t.Fatalf("action %s: unexpected args %#v", tc.action, executor.calls[0].args)
+			}
+		}
+		// Status detection after the action adds pgrep/nginx -v calls;
+		// the first call must be the control command itself.
+		if executor.calls[0].name != "nginx" {
+			t.Fatalf("action %s: first call must be nginx control command, got %#v", tc.action, executor.calls)
+		}
+	}
+}
+
+func TestBinaryModeRestartIsQuitThenStart(t *testing.T) {
+	executor := &recordingExecutor{}
+	service := svc.NewService(t.TempDir(), t.TempDir(), "nginx", models.NginxControlModeBinary, time.Second, executor)
+
+	resp, err := service.Action(context.Background(), "restart")
+	if err != nil {
+		t.Fatalf("restart: %v", err)
+	}
+	if !resp.OK {
+		t.Fatalf("expected restart ok with successful executor, got %#v", resp)
+	}
+
+	var nginxCalls []recordedCall
+	for _, call := range executor.calls {
+		if call.name == "nginx" && len(call.args) == 0 || call.name == "nginx" && len(call.args) == 2 {
+			nginxCalls = append(nginxCalls, call)
+		}
+	}
+	if len(nginxCalls) < 2 {
+		t.Fatalf("expected quit then start, got %#v", executor.calls)
+	}
+	if nginxCalls[0].args[0] != "-s" || nginxCalls[0].args[1] != "quit" {
+		t.Fatalf("expected first nginx call to be quit, got %#v", nginxCalls[0].args)
+	}
+	last := nginxCalls[len(nginxCalls)-1]
+	if len(last.args) != 0 {
+		t.Fatalf("expected final nginx call to be plain start, got %#v", last.args)
 	}
 }

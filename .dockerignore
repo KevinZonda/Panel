@@ -1,0 +1,8 @@
+.git
+bin/
+data/
+panel.db
+panel.db-*
+*.log
+.env
+config.json

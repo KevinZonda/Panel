@@ -2,6 +2,7 @@ package svc
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/KevinZonda/Panel/domain/nginx/dao"
 	"github.com/KevinZonda/Panel/lib/apperr"
 	"github.com/KevinZonda/Panel/lib/processx"
+	"github.com/KevinZonda/Panel/models"
 	"github.com/KevinZonda/Panel/models/apimod"
 )
 
@@ -23,16 +25,21 @@ type Service struct {
 	sitesDir    string
 	backupDir   string
 	serviceName string
+	controlMode string
 	timeout     time.Duration
 	executor    processx.Executor
 	mu          sync.Mutex
 }
 
-func NewService(sitesDir, backupDir, serviceName string, timeout time.Duration, executor processx.Executor) *Service {
+func NewService(sitesDir, backupDir, serviceName, controlMode string, timeout time.Duration, executor processx.Executor) *Service {
+	if controlMode == "" {
+		controlMode = models.NginxControlModeSystemd
+	}
 	return &Service{
 		sitesDir:    sitesDir,
 		backupDir:   backupDir,
 		serviceName: serviceName,
+		controlMode: controlMode,
 		timeout:     timeout,
 		executor:    executor,
 	}
@@ -81,7 +88,12 @@ func (s *Service) Action(ctx context.Context, action string) (*apimod.NginxActio
 	}
 
 	s.mu.Lock()
-	result := s.run(ctx, "systemctl", action, s.serviceName)
+	var result processx.Result
+	if s.controlMode == models.NginxControlModeBinary {
+		result = s.runBinaryAction(ctx, action)
+	} else {
+		result = s.run(ctx, "systemctl", action, s.serviceName)
+	}
 	s.mu.Unlock()
 
 	pid, running := s.detectProcess(ctx)
@@ -261,6 +273,78 @@ func (s *Service) run(ctx context.Context, name string, args ...string) processx
 	return s.executor.Run(cmdCtx, name, args...)
 }
 
+// runBinaryAction controls nginx through its own signals, without any init
+// system. This supports environments like containers, Alpine, or BSD hosts.
+func (s *Service) runBinaryAction(ctx context.Context, action string) processx.Result {
+	switch action {
+	case "start":
+		return s.run(ctx, "nginx")
+	case "stop":
+		result := s.run(ctx, "nginx", "-s", "quit")
+		// quit is asynchronous; wait for the master process to exit so the
+		// reported status matches systemctl stop semantics.
+		if result.Err == nil && result.ExitCode == 0 {
+			s.waitForProcessExit(ctx)
+		}
+		return result
+	case "reload":
+		return s.run(ctx, "nginx", "-s", "reload")
+	case "restart":
+		return s.runBinaryRestart(ctx)
+	}
+	return processx.Result{ExitCode: -1, Err: fmt.Errorf("unsupported nginx action %q", action)}
+}
+
+// nginx has no restart signal: stop gracefully, wait for the master process
+// to exit (quit is asynchronous), then start again.
+func (s *Service) runBinaryRestart(ctx context.Context) processx.Result {
+	started := time.Now()
+	stop := s.run(ctx, "nginx", "-s", "quit")
+	// A failed quit usually means nginx was not running; still wait for any
+	// leftover process to exit before trying to bind ports again.
+	s.waitForProcessExit(ctx)
+	start := s.run(ctx, "nginx")
+
+	output := strings.TrimSpace(strings.Join(filterEmpty(stop.Output, start.Output), "\n"))
+	duration := time.Since(started).Milliseconds()
+	if start.Err == nil && start.ExitCode == 0 {
+		// A failed quit just means nginx was not running before.
+		return processx.Result{Stdout: start.Stdout, Output: output, ExitCode: 0, DurationMS: duration}
+	}
+	if start.Err != nil {
+		return processx.Result{Output: output, ExitCode: start.ExitCode, DurationMS: duration, Err: start.Err}
+	}
+	return processx.Result{Output: output, ExitCode: start.ExitCode, DurationMS: duration, Err: fmt.Errorf("nginx restart failed")}
+}
+
+func (s *Service) waitForProcessExit(ctx context.Context) {
+	deadline := time.Now().Add(s.commandTimeout())
+	for {
+		_, running := s.detectProcess(ctx)
+		if !running || time.Now().After(deadline) {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func filterEmpty(values ...string) []string {
+	items := make([]string, 0, len(values))
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			items = append(items, v)
+		}
+	}
+	return items
+}
+
+func (s *Service) commandTimeout() time.Duration {
+	if s.timeout <= 0 {
+		return 10 * time.Second
+	}
+	return s.timeout
+}
+
 func (s *Service) detectProcess(ctx context.Context) (*int, bool) {
 	result := s.run(ctx, "pgrep", "-x", "nginx")
 	if result.Err != nil || result.ExitCode != 0 {
@@ -280,6 +364,16 @@ func (s *Service) detectProcess(ctx context.Context) (*int, bool) {
 }
 
 func (s *Service) detectService(ctx context.Context) (string, *string, *string) {
+	if s.controlMode == models.NginxControlModeBinary {
+		if _, running := s.detectProcess(ctx); running {
+			active := "active"
+			sub := "running"
+			return "binary", &active, &sub
+		}
+		active := "inactive"
+		sub := "dead"
+		return "binary", &active, &sub
+	}
 	activeResult := s.run(ctx, "systemctl", "show", s.serviceName, "--property=ActiveState", "--value")
 	if activeResult.Err != nil || activeResult.ExitCode != 0 {
 		if _, running := s.detectProcess(ctx); running {
