@@ -25,6 +25,7 @@ func loadTemplates() (*template.Template, error) {
 		"derefStr":  derefStr,
 		"derefInt":  derefInt,
 		"shortSHA":  shortSHA,
+		"seq":       seq,
 	}
 	return template.New("web").Funcs(funcs).ParseFS(templatesFS, "templates/*.html")
 }
@@ -137,4 +138,16 @@ func shortSHA(v string) string {
 		return v[:12]
 	}
 	return v
+}
+
+// seq returns [0, n) for templates that need to repeat a block n times.
+func seq(n int) []int {
+	if n < 0 {
+		n = 0
+	}
+	items := make([]int, n)
+	for i := range items {
+		items[i] = i
+	}
+	return items
 }

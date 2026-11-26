@@ -24,12 +24,12 @@
 <tr><th>Load average</th><td>{{printf "%.2f" .CPU.LoadAverage.Load1}} / {{printf "%.2f" .CPU.LoadAverage.Load5}} / {{printf "%.2f" .CPU.LoadAverage.Load15}} (1m / 5m / 15m)</td></tr>
 <tr><th>Collected at</th><td>{{fmtTime .CPU.CollectedAt}}</td></tr>
 </table>
-{{if .CPU.PerCorePercent}}
+{{if .CoreRows}}
 <h3>Per core</h3>
-<table border="1">
-<tr><th>Core</th><th>Usage</th></tr>
-{{range $i, $p := .CPU.PerCorePercent}}
-<tr><td>{{$i}}</td><td>{{printf "%.1f" $p}}%</td></tr>
+<table border="1" cellpadding="6">
+<tr>{{range seq .CoreCols}}<th>#</th><th>Usage</th>{{end}}</tr>
+{{range $row := .CoreRows}}
+<tr>{{range $cell := $row}}<td>{{$cell.Index}}</td><td>{{printf "%.1f" $cell.Percent}}%</td>{{end}}</tr>
 {{end}}
 </table>
 {{end}}

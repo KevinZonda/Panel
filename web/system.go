@@ -40,6 +40,11 @@ func (w *Web) systemPage(c *gin.Context) {
 		data["CPUError"] = errorMessage(cpuErr)
 	} else {
 		data["CPU"] = cpuStatus
+		if len(cpuStatus.PerCorePercent) > 0 {
+			rows, cols := chunkCores(cpuStatus.PerCorePercent)
+			data["CoreRows"] = rows
+			data["CoreCols"] = cols
+		}
 	}
 	if memErr != nil {
 		data["MemoryError"] = errorMessage(memErr)
@@ -47,4 +52,35 @@ func (w *Web) systemPage(c *gin.Context) {
 		data["Memory"] = memStatus
 	}
 	w.render(c, http.StatusOK, "system.html", data)
+}
+
+type coreCell struct {
+	Index   int
+	Percent float64
+}
+
+// chunkCores arranges per-core usage into table rows. Column count scales
+// with core count so the table never grows beyond roughly 8 rows:
+// up to 32 cores use 4 columns, up to 64 use 8, beyond that 16.
+func chunkCores(perCore []float64) (rows [][]coreCell, cols int) {
+	cols = 4
+	switch {
+	case len(perCore) > 64:
+		cols = 16
+	case len(perCore) > 32:
+		cols = 8
+	}
+
+	for i := 0; i < len(perCore); i += cols {
+		end := i + cols
+		if end > len(perCore) {
+			end = len(perCore)
+		}
+		row := make([]coreCell, 0, cols)
+		for j := i; j < end; j++ {
+			row = append(row, coreCell{Index: j, Percent: perCore[j]})
+		}
+		rows = append(rows, row)
+	}
+	return rows, cols
 }
