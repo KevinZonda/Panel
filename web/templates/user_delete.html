@@ -1,0 +1,11 @@
+{{template "head" .}}
+
+{{if .Target}}
+<p>Are you sure you want to delete user <strong>{{.Target.Username}}</strong> ({{.Target.Role}})?</p>
+<form method="post" action="/ui/users/{{.Target.ID}}/delete">
+<button type="submit">Yes, delete</button>
+</form>
+<p><a href="/ui/users/{{.Target.ID}}">Cancel</a></p>
+{{end}}
+
+{{template "foot" .}}

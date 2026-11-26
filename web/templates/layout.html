@@ -1,0 +1,33 @@
+{{define "head"}}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} - kvzd-panel</title>
+</head>
+<body>
+{{if .User}}
+<nav>
+<a href="/ui">Dashboard</a> |
+<a href="/ui/system">System</a> |
+<a href="/ui/nginx">Nginx</a> |
+<a href="/ui/nginx/sites">Sites</a> |
+{{if eq .User.Role "admin"}}<a href="/ui/users">Users</a> |{{end}}
+<a href="/ui/password">Password</a> |
+<a href="/ui/logout">Logout</a>
+(signed in as {{.User.Username}}, {{.User.Role}})
+</nav>
+<hr>
+{{end}}
+<h1>{{.Title}}</h1>
+{{if .Message}}<p><strong>{{.Message}}</strong></p>{{end}}
+{{if .Error}}<p><strong>Error: {{.Error}}</strong></p>{{end}}
+{{end}}
+
+{{define "foot"}}
+<hr>
+<p><small>kvzd-panel</small></p>
+</body>
+</html>
+{{end}}

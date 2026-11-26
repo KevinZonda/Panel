@@ -1,0 +1,13 @@
+{{template "head" .}}
+<form method="post" action="/ui/login">
+<p>
+<label for="username">Username</label><br>
+<input type="text" id="username" name="username" required autofocus>
+</p>
+<p>
+<label for="password">Password</label><br>
+<input type="password" id="password" name="password" required>
+</p>
+<p><button type="submit">Login</button></p>
+</form>
+{{template "foot" .}}

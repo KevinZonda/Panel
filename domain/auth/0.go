@@ -37,3 +37,7 @@ func New(params Params) (*Domain, error) {
 func (d *Domain) Middleware() *middleware.Middleware {
 	return d.mw
 }
+
+func (d *Domain) Service() *svc.Service {
+	return d.svc
+}

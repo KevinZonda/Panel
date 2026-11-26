@@ -1,0 +1,34 @@
+{{template "head" .}}
+
+{{if .Nginx}}
+<h2>Status</h2>
+<table border="1">
+<tr><th>Installed</th><td>{{.Nginx.Installed}}</td></tr>
+<tr><th>Running</th><td>{{.Nginx.Running}}</td></tr>
+<tr><th>PID</th><td>{{derefInt .Nginx.PID}}</td></tr>
+<tr><th>Version</th><td>{{derefStr .Nginx.Version}}</td></tr>
+<tr><th>Service manager</th><td>{{.Nginx.Service.Manager}}</td></tr>
+{{if .Nginx.Service.ActiveState}}<tr><th>Active state</th><td>{{derefStr .Nginx.Service.ActiveState}} / {{derefStr .Nginx.Service.SubState}}</td></tr>{{end}}
+<tr><th>Checked at</th><td>{{fmtTime .Nginx.CheckedAt}}</td></tr>
+</table>
+
+<h2>Config test</h2>
+<table border="1">
+<tr><th>Result</th><td>{{if .Nginx.ConfigTest.OK}}ok{{else}}failed{{end}}</td></tr>
+<tr><th>Exit code</th><td>{{.Nginx.ConfigTest.ExitCode}}</td></tr>
+</table>
+{{if .Nginx.ConfigTest.Output}}<pre>{{.Nginx.ConfigTest.Output}}</pre>{{end}}
+
+{{if eq .User.Role "admin"}}
+<h2>Actions</h2>
+<form method="post" action="/ui/nginx/actions">
+<button type="submit" name="action" value="start">Start</button>
+<button type="submit" name="action" value="stop">Stop</button>
+<button type="submit" name="action" value="reload">Reload</button>
+<button type="submit" name="action" value="restart">Restart</button>
+</form>
+{{end}}
+{{end}}
+
+<p><a href="/ui/nginx/sites">Manage sites</a></p>
+{{template "foot" .}}

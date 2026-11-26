@@ -1,0 +1,40 @@
+{{template "head" .}}
+
+<h2>CPU</h2>
+{{if .CPUError}}
+<p>Error: {{.CPUError}}</p>
+{{else if .CPU}}
+<table border="1">
+<tr><th>Usage</th><td>{{printf "%.1f" .CPU.UsagePercent}}%</td></tr>
+<tr><th>Cores</th><td>{{.CPU.Cores}}</td></tr>
+<tr><th>Load average</th><td>{{printf "%.2f" .CPU.LoadAverage.Load1}} / {{printf "%.2f" .CPU.LoadAverage.Load5}} / {{printf "%.2f" .CPU.LoadAverage.Load15}} (1m / 5m / 15m)</td></tr>
+<tr><th>Collected at</th><td>{{fmtTime .CPU.CollectedAt}}</td></tr>
+</table>
+{{if .CPU.PerCorePercent}}
+<h3>Per core</h3>
+<table border="1">
+<tr><th>Core</th><th>Usage</th></tr>
+{{range $i, $p := .CPU.PerCorePercent}}
+<tr><td>{{$i}}</td><td>{{printf "%.1f" $p}}%</td></tr>
+{{end}}
+</table>
+{{end}}
+{{end}}
+
+<h2>Memory</h2>
+{{if .MemoryError}}
+<p>Error: {{.MemoryError}}</p>
+{{else if .Memory}}
+<table border="1">
+<tr><th>Total</th><td>{{fmtBytes .Memory.TotalBytes}}</td></tr>
+<tr><th>Used</th><td>{{fmtBytes .Memory.UsedBytes}} ({{printf "%.1f" .Memory.UsagePercent}}%)</td></tr>
+<tr><th>Free</th><td>{{fmtBytes .Memory.FreeBytes}}</td></tr>
+<tr><th>Available</th><td>{{fmtBytes .Memory.AvailableBytes}}</td></tr>
+<tr><th>Swap total</th><td>{{fmtBytes .Memory.Swap.TotalBytes}}</td></tr>
+<tr><th>Swap used</th><td>{{fmtBytes .Memory.Swap.UsedBytes}} ({{printf "%.1f" .Memory.Swap.UsagePercent}}%)</td></tr>
+<tr><th>Collected at</th><td>{{fmtTime .Memory.CollectedAt}}</td></tr>
+</table>
+{{end}}
+
+<p><a href="/ui/system">Refresh</a></p>
+{{template "foot" .}}

@@ -1,0 +1,29 @@
+{{template "head" .}}
+
+<h2>System</h2>
+{{if .SystemError}}
+<p>Error: {{.SystemError}}</p>
+{{else if .System}}
+<table border="1">
+<tr><th>CPU usage</th><td>{{printf "%.1f" .System.CPU.UsagePercent}}% ({{.System.CPU.Cores}} cores)</td></tr>
+<tr><th>Load average</th><td>{{printf "%.2f" .System.CPU.LoadAverage.Load1}} / {{printf "%.2f" .System.CPU.LoadAverage.Load5}} / {{printf "%.2f" .System.CPU.LoadAverage.Load15}}</td></tr>
+<tr><th>Memory</th><td>{{fmtBytes .System.Memory.UsedBytes}} / {{fmtBytes .System.Memory.TotalBytes}} ({{printf "%.1f" .System.Memory.UsagePercent}}%)</td></tr>
+<tr><th>Uptime</th><td>{{fmtUptime .System.UptimeSeconds}}</td></tr>
+</table>
+<p><a href="/ui/system">Details</a></p>
+{{end}}
+
+<h2>Nginx</h2>
+{{if .NginxError}}
+<p>Error: {{.NginxError}}</p>
+{{else if .Nginx}}
+<table border="1">
+<tr><th>Installed</th><td>{{.Nginx.Installed}}</td></tr>
+<tr><th>Running</th><td>{{.Nginx.Running}}</td></tr>
+<tr><th>Version</th><td>{{derefStr .Nginx.Version}}</td></tr>
+<tr><th>Config test</th><td>{{if .Nginx.ConfigTest.OK}}ok{{else}}failed{{end}}</td></tr>
+</table>
+<p><a href="/ui/nginx">Details</a> | <a href="/ui/nginx/sites">Sites</a></p>
+{{end}}
+
+{{template "foot" .}}

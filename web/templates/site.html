@@ -1,0 +1,31 @@
+{{template "head" .}}
+
+{{if .Site}}
+<table border="1">
+<tr><th>Name</th><td>{{.Site.Name}}</td></tr>
+<tr><th>Size</th><td>{{.Site.SizeBytes}} B</td></tr>
+<tr><th>Modified</th><td>{{fmtTime .Site.ModifiedAt}}</td></tr>
+<tr><th>SHA256</th><td><code>{{.Site.SHA256}}</code></td></tr>
+</table>
+
+{{if eq .User.Role "admin"}}
+<h2>Edit</h2>
+<form method="post" action="/ui/nginx/sites/{{.Site.Name}}">
+<input type="hidden" name="expected_sha256" value="{{.Site.SHA256}}">
+<p>
+<textarea name="content" rows="24" cols="100">{{if .FormContent}}{{.FormContent}}{{else}}{{.Site.Content}}{{end}}</textarea>
+</p>
+<p>
+<label><input type="checkbox" name="validate" value="on" checked> validate with nginx -t (rollback on failure)</label>
+</p>
+<p><button type="submit">Save</button></p>
+</form>
+<p><a href="/ui/nginx/sites/{{.Site.Name}}/delete">Delete this site</a></p>
+{{else}}
+<h2>Content</h2>
+<pre>{{.Site.Content}}</pre>
+{{end}}
+{{end}}
+
+<p><a href="/ui/nginx/sites">Back to sites</a></p>
+{{template "foot" .}}

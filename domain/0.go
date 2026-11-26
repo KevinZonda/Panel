@@ -6,6 +6,7 @@ import (
 	"github.com/KevinZonda/Panel/domain/system"
 	"github.com/KevinZonda/Panel/domain/user"
 	"github.com/KevinZonda/Panel/models"
+	"github.com/KevinZonda/Panel/web"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -59,5 +60,12 @@ func InitRoute(engine *gin.Engine, db *gorm.DB, cfg *models.Config) error {
 	if err := nginxDomain.InitHttp(api, authn, admin); err != nil {
 		return err
 	}
-	return nil
+
+	webUI := web.New(
+		authDomain.Service(),
+		userDomain.Service(),
+		systemDomain.Service(),
+		nginxDomain.Service(),
+	)
+	return webUI.InitRoutes(engine)
 }

@@ -1,0 +1,12 @@
+{{template "head" .}}
+
+{{if .Site}}
+<p>Are you sure you want to delete <strong>{{.Site.Name}}</strong>?</p>
+<p>A backup copy is kept in the server backup directory.</p>
+<form method="post" action="/ui/nginx/sites/{{.Site.Name}}/delete">
+<button type="submit">Yes, delete</button>
+</form>
+<p><a href="/ui/nginx/sites/{{.Site.Name}}">Cancel</a></p>
+{{end}}
+
+{{template "foot" .}}

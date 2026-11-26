@@ -1,0 +1,48 @@
+{{template "head" .}}
+
+{{if .Users}}
+<table border="1">
+<tr><th>ID</th><th>Username</th><th>Role</th><th>Status</th><th>Last login</th><th>Created</th></tr>
+{{range .Users}}
+<tr>
+<td>{{.ID}}</td>
+<td><a href="/ui/users/{{.ID}}">{{.Username}}</a></td>
+<td>{{.Role}}</td>
+<td>{{.Status}}</td>
+<td>{{if .LastLoginAt}}{{fmtTime .LastLoginAt}}{{else}}never{{end}}</td>
+<td>{{fmtTime .CreatedAt}}</td>
+</tr>
+{{end}}
+</table>
+{{else}}
+<p>No users found.</p>
+{{end}}
+
+<h2>Create user</h2>
+<form method="post" action="/ui/users">
+<p>
+<label for="username">Username</label><br>
+<input type="text" id="username" name="username" required>
+</p>
+<p>
+<label for="password">Password (min 8 characters)</label><br>
+<input type="password" id="password" name="password" required minlength="8">
+</p>
+<p>
+<label for="role">Role</label><br>
+<select id="role" name="role">
+<option value="viewer">viewer</option>
+<option value="admin">admin</option>
+</select>
+</p>
+<p>
+<label for="status">Status</label><br>
+<select id="status" name="status">
+<option value="active">active</option>
+<option value="disabled">disabled</option>
+</select>
+</p>
+<p><button type="submit">Create</button></p>
+</form>
+
+{{template "foot" .}}

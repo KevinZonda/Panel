@@ -1,0 +1,42 @@
+{{template "head" .}}
+
+{{if .Target}}
+<h2>Edit user</h2>
+<form method="post" action="/ui/users/{{.Target.ID}}">
+<p>
+<label for="username">Username</label><br>
+<input type="text" id="username" name="username" value="{{.Target.Username}}" required>
+</p>
+<p>
+<label for="role">Role</label><br>
+<select id="role" name="role">
+<option value="viewer" {{if eq .Target.Role "viewer"}}selected{{end}}>viewer</option>
+<option value="admin" {{if eq .Target.Role "admin"}}selected{{end}}>admin</option>
+</select>
+</p>
+<p>
+<label for="status">Status</label><br>
+<select id="status" name="status">
+<option value="active" {{if eq .Target.Status "active"}}selected{{end}}>active</option>
+<option value="disabled" {{if eq .Target.Status "disabled"}}selected{{end}}>disabled</option>
+</select>
+</p>
+<p><button type="submit">Save</button></p>
+</form>
+
+<h2>Reset password</h2>
+<form method="post" action="/ui/users/{{.Target.ID}}/reset-password">
+<p>
+<label for="new_password">New password (min 8 characters)</label><br>
+<input type="password" id="new_password" name="new_password" required minlength="8">
+</p>
+<p><button type="submit">Reset password</button></p>
+</form>
+<p>Resetting the password signs out all sessions of this user.</p>
+
+<h2>Delete</h2>
+<p><a href="/ui/users/{{.Target.ID}}/delete">Delete this user</a></p>
+{{end}}
+
+<p><a href="/ui/users">Back to users</a></p>
+{{template "foot" .}}

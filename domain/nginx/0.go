@@ -38,3 +38,7 @@ func New(params Params) (*Domain, error) {
 		handler: handler.New(service),
 	}, nil
 }
+
+func (d *Domain) Service() *svc.Service {
+	return d.svc
+}
