@@ -19,6 +19,7 @@
 {{if eq .User.Role "admin"}}
 <h2>Create site</h2>
 <form method="post" action="/ui/nginx/sites">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <p>
 <label for="name">File name</label><br>
 <input type="text" id="name" name="name" required pattern="[A-Za-z0-9._-]{1,128}" value="{{.FormName}}"><br>

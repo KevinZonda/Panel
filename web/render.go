@@ -42,6 +42,7 @@ func (w *Web) render(c *gin.Context, status int, page string, data gin.H) {
 			data["Message"] = msg
 		}
 	}
+	data["CSRFToken"] = csrfTokenFromCookie(c)
 	c.HTML(status, page, data)
 }
 

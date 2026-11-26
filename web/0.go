@@ -58,7 +58,7 @@ func (w *Web) InitRoutes(engine *gin.Engine) error {
 	})
 
 	ui := engine.Group("/ui")
-	ui.Use(originCheck())
+	ui.Use(csrfCheck())
 
 	ui.GET("/login", w.loginPage)
 	ui.POST("/login", loginLimiter, w.login)

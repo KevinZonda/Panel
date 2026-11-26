@@ -22,6 +22,7 @@
 {{if eq .User.Role "admin"}}
 <h2>Actions</h2>
 <form method="post" action="/ui/nginx/actions">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <button type="submit" name="action" value="start">Start</button>
 <button type="submit" name="action" value="stop">Stop</button>
 <button type="submit" name="action" value="reload">Reload</button>

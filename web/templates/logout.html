@@ -1,6 +1,7 @@
 {{template "head" .}}
 <p>Are you sure you want to log out?</p>
 <form method="post" action="/ui/logout">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <button type="submit">Yes, log out</button>
 </form>
 <p><a href="/ui">Cancel</a></p>

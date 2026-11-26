@@ -11,6 +11,7 @@
 {{if eq .User.Role "admin"}}
 <h2>Edit</h2>
 <form method="post" action="/ui/nginx/sites/{{.Site.Name}}">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <input type="hidden" name="expected_sha256" value="{{.Site.SHA256}}">
 <p>
 <textarea name="content" rows="24" cols="100">{{if .FormContent}}{{.FormContent}}{{else}}{{.Site.Content}}{{end}}</textarea>

@@ -1,10 +1,10 @@
 package web
 
 import (
+	"crypto/subtle"
 	"net/http"
-	"net/url"
-	"strings"
 
+	"github.com/KevinZonda/GoX/pkg/cryptox"
 	"github.com/KevinZonda/Panel/lib/authctx"
 	"github.com/gin-gonic/gin"
 )
@@ -53,22 +53,38 @@ func (w *Web) adminRequired() gin.HandlerFunc {
 	}
 }
 
-// originCheck rejects cross-site POST requests as a CSRF defense.
-// Combined with SameSite=Strict cookies this covers modern browsers.
-func originCheck() gin.HandlerFunc {
+// csrfToken derives a per-session CSRF token from the session token.
+// An attacker cannot know it because the session cookie is HttpOnly.
+func csrfToken(sessionToken string) string {
+	return cryptox.SHA256Str(sessionToken + ":panel-csrf")
+}
+
+func csrfTokenFromCookie(c *gin.Context) string {
+	token, err := c.Cookie(cookieName)
+	if err != nil || token == "" {
+		return ""
+	}
+	return csrfToken(token)
+}
+
+// csrfCheck validates the hidden csrf_token form field on POST requests.
+// Unlike an Origin/Host comparison this works behind any reverse proxy.
+// Requests without a session cookie pass through: they are either the
+// login POST or will be redirected to login by the auth middleware anyway.
+func csrfCheck() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.Method != http.MethodPost {
 			c.Next()
 			return
 		}
-		origin := c.GetHeader("Origin")
-		if origin == "" {
+		expected := csrfTokenFromCookie(c)
+		if expected == "" {
 			c.Next()
 			return
 		}
-		u, err := url.Parse(origin)
-		if err != nil || !strings.EqualFold(u.Host, c.Request.Host) {
-			c.String(http.StatusForbidden, "cross-site request rejected")
+		provided := c.PostForm("csrf_token")
+		if subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
+			c.String(http.StatusForbidden, "invalid or missing csrf token")
 			c.Abort()
 			return
 		}

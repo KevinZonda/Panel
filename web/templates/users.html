@@ -20,6 +20,7 @@
 
 <h2>Create user</h2>
 <form method="post" action="/ui/users">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <p>
 <label for="username">Username</label><br>
 <input type="text" id="username" name="username" required>
