@@ -1,10 +1,13 @@
 package svc
 
 import (
+	"bytes"
+	"crypto"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/KevinZonda/Panel/domain/cert/dao"
@@ -146,6 +149,96 @@ func (s *Service) ReadFile(certType, name, file string) ([]byte, bool, error) {
 	return content, privateFiles(certType)[file], nil
 }
 
+// CreatePublicCert adds an externally issued certificate to the public
+// store, writing pub and priv into a fresh domain directory. The private
+// key must match the certificate's public key; a partial write removes
+// the whole directory so no half-installed cert is left behind.
+func (s *Service) CreatePublicCert(name, pub, priv string) (*apimod.CertMutationResult, error) {
+	if !dao.ValidName(name) {
+		return nil, apperr.Validationf("cert name is invalid")
+	}
+	if len(pub) == 0 || len(pub) > maxCertFileBytes {
+		return nil, apperr.Validationf("pub must be 1-%d bytes", maxCertFileBytes)
+	}
+	if len(priv) == 0 || len(priv) > maxCertFileBytes {
+		return nil, apperr.Validationf("priv must be 1-%d bytes", maxCertFileBytes)
+	}
+	if err := validatePEM("pub", pub); err != nil {
+		return nil, err
+	}
+	if err := validatePEM("priv", priv); err != nil {
+		return nil, err
+	}
+	chain, err := parseCertificateChain(pub)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateKeyMatchesCert(chain[0], priv); err != nil {
+		return nil, err
+	}
+
+	root := s.publicDir
+	if dao.DomainExists(root, name) {
+		return nil, apperr.Conflictf("cert already exists")
+	}
+
+	written := false
+	defer func() {
+		if !written {
+			_ = dao.DeleteDomain(root, name)
+		}
+	}()
+	if err := dao.WriteFile(root, name, "pub", []byte(pub), 0o644); err != nil {
+		return nil, apperr.Dependencyf("write pub failed: %v", err)
+	}
+	if err := dao.WriteFile(root, name, "priv", []byte(priv), 0o600); err != nil {
+		return nil, apperr.Dependencyf("write priv failed: %v", err)
+	}
+	written = true
+	return &apimod.CertMutationResult{Name: name, Type: apimod.CertTypePublic}, nil
+}
+
+// validateKeyMatchesCert parses the PEM private key and rejects it unless
+// its public key equals the certificate's public key.
+func validateKeyMatchesCert(cert *x509.Certificate, privPEM string) error {
+	block, _ := pem.Decode([]byte(privPEM))
+	if block == nil {
+		return apperr.Validationf("private key is not valid PEM")
+	}
+	keyPub, err := privateKeyPublicKey(block.Bytes)
+	if err != nil {
+		return apperr.Validationf("private key does not parse")
+	}
+	certPubDER, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
+	if err != nil {
+		return apperr.Validationf("certificate public key does not parse")
+	}
+	keyPubDER, err := x509.MarshalPKIXPublicKey(keyPub)
+	if err != nil {
+		return apperr.Validationf("private key public key does not parse")
+	}
+	if !bytes.Equal(certPubDER, keyPubDER) {
+		return apperr.Validationf("private key does not match certificate")
+	}
+	return nil
+}
+
+func privateKeyPublicKey(der []byte) (any, error) {
+	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
+		return key.Public(), nil
+	}
+	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
+		if signer, ok := key.(crypto.Signer); ok {
+			return signer.Public(), nil
+		}
+		return nil, fmt.Errorf("unsupported pkcs8 key type")
+	}
+	if key, err := x509.ParseECPrivateKey(der); err == nil {
+		return key.Public(), nil
+	}
+	return nil, fmt.Errorf("private key does not parse")
+}
+
 func (s *Service) UploadFile(certType, name, file, content string) error {
 	if !ValidType(certType) {
 		return apperr.Validationf("cert type is invalid")
@@ -208,22 +301,61 @@ func validateFileName(certType, file string) error {
 }
 
 // validatePEM sanity-checks uploaded content: keys must parse as private
-// keys, certificates as x509 certificates.
+// keys, certificates as x509 certificates. Certificate files may carry a
+// chain (leaf first, intermediates after); every block must be a valid
+// certificate, trailing garbage is rejected, and each certificate must be
+// signed by the next one in the file.
 func validatePEM(file, content string) error {
-	block, _ := pem.Decode([]byte(content))
-	if block == nil {
-		return apperr.Validationf("content is not valid PEM")
-	}
 	if file == "priv" || file == "server.key" {
+		block, _ := pem.Decode([]byte(content))
+		if block == nil {
+			return apperr.Validationf("content is not valid PEM")
+		}
 		return validatePrivateKey(block)
 	}
 	if file == "pub" || file == "ca.crt" || file == "server.crt" {
-		if _, err := x509.ParseCertificate(block.Bytes); err != nil {
-			return apperr.Validationf("certificate does not parse: %v", err)
-		}
-		return nil
+		_, err := parseCertificateChain(content)
+		return err
 	}
 	return nil
+}
+
+// parseCertificateChain decodes every PEM block in content. The first
+// certificate is the leaf; any following certificates must form the
+// signing chain in order.
+func parseCertificateChain(content string) ([]*x509.Certificate, error) {
+	if !strings.HasPrefix(strings.TrimSpace(content), "-----BEGIN") {
+		return nil, apperr.Validationf("content is not valid PEM")
+	}
+	var certs []*x509.Certificate
+	rest := []byte(content)
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			return nil, apperr.Validationf("expected CERTIFICATE block, got %q", block.Type)
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, apperr.Validationf("certificate does not parse: %v", err)
+		}
+		certs = append(certs, cert)
+	}
+	if len(certs) == 0 {
+		return nil, apperr.Validationf("content is not valid PEM")
+	}
+	if len(bytes.TrimSpace(rest)) > 0 {
+		return nil, apperr.Validationf("trailing data after certificate is not valid PEM")
+	}
+	for i := 0; i+1 < len(certs); i++ {
+		if err := certs[i].CheckSignatureFrom(certs[i+1]); err != nil {
+			return nil, apperr.Validationf("certificate chain is out of order: certificate %d is not signed by the next certificate", i+1)
+		}
+	}
+	return certs, nil
 }
 
 func validatePrivateKey(block *pem.Block) error {

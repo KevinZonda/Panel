@@ -19,7 +19,12 @@
 {{end}}
 
 {{if eq .User.Role "admin"}}
-<form method="get" action="/ui/certs/selfsign"><button type="submit">Generate self-signed certificate</button></form>
+<table>
+<tr>
+<td><form method="get" action="/ui/certs/public"><button type="submit">Add external certificate</button></form></td>
+<td><form method="get" action="/ui/certs/selfsign"><button type="submit">Generate self-signed certificate</button></form></td>
+</tr>
+</table>
 {{end}}
 
 {{template "foot" .}}

@@ -282,3 +282,159 @@ func TestGenerateSelfSignCustomSubject(t *testing.T) {
 		t.Fatalf("default validity NotAfter = %v, want ~%v", serverCert.NotAfter, wantExpiry)
 	}
 }
+
+func TestCreatePublicCert(t *testing.T) {
+	service, publicDir, selfSignDir := setup(t)
+
+	// generate key material to upload: reuse a self-signed cert
+	if _, err := service.GenerateSelfSign("donor.com", []string{"donor.com", "www.donor.com"}, 30, svc.SelfSignSubject{}); err != nil {
+		t.Fatalf("generate donor: %v", err)
+	}
+	pub, err := os.ReadFile(filepath.Join(selfSignDir, "donor.com", "server.crt"))
+	if err != nil {
+		t.Fatalf("read donor pub: %v", err)
+	}
+	priv, err := os.ReadFile(filepath.Join(selfSignDir, "donor.com", "server.key"))
+	if err != nil {
+		t.Fatalf("read donor priv: %v", err)
+	}
+
+	// happy path
+	if _, err := service.CreatePublicCert("ext.com", string(pub), string(priv)); err != nil {
+		t.Fatalf("create public: %v", err)
+	}
+	writtenPub, err := os.ReadFile(filepath.Join(publicDir, "ext.com", "pub"))
+	if err != nil {
+		t.Fatalf("read written pub: %v", err)
+	}
+	if string(writtenPub) != string(pub) {
+		t.Fatal("written pub differs from upload")
+	}
+	info, err := os.Stat(filepath.Join(publicDir, "ext.com", "priv"))
+	if err != nil {
+		t.Fatalf("stat priv: %v", err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("expected priv perm 0600, got %o", info.Mode().Perm())
+	}
+
+	// appears in listing with parsed metadata
+	list, err := service.List()
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	found := false
+	for _, item := range list.Items {
+		if item.Type == apimod.CertTypePublic && item.Name == "ext.com" {
+			found = true
+			if item.CommonName != "donor.com" {
+				t.Fatalf("listed CN = %q", item.CommonName)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("ext.com not in list")
+	}
+
+	// conflict
+	if _, err := service.CreatePublicCert("ext.com", string(pub), string(priv)); !errors.Is(err, apperr.ErrConflict) {
+		t.Fatalf("expected conflict, got %v", err)
+	}
+
+	// mismatched key rejected: use a different cert's key
+	if _, err := service.GenerateSelfSign("other.com", []string{"other.com"}, 30, svc.SelfSignSubject{}); err != nil {
+		t.Fatalf("generate other: %v", err)
+	}
+	otherKey, err := os.ReadFile(filepath.Join(selfSignDir, "other.com", "server.key"))
+	if err != nil {
+		t.Fatalf("read other key: %v", err)
+	}
+	if _, err := service.CreatePublicCert("mismatch.com", string(pub), string(otherKey)); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected validation error for mismatched key, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(publicDir, "mismatch.com")); !os.IsNotExist(err) {
+		t.Fatal("mismatch.com directory should not exist after rejection")
+	}
+
+	// garbage rejected
+	if _, err := service.CreatePublicCert("garbage.com", "not pem", string(priv)); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected validation error for bad pub, got %v", err)
+	}
+	if _, err := service.CreatePublicCert("garbage.com", string(pub), "not pem"); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected validation error for bad priv, got %v", err)
+	}
+
+	// bad name rejected
+	if _, err := service.CreatePublicCert("../evil", string(pub), string(priv)); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected validation error for bad name, got %v", err)
+	}
+}
+
+func TestCreatePublicCertChainValidation(t *testing.T) {
+	service, publicDir, selfSignDir := setup(t)
+
+	if _, err := service.GenerateSelfSign("donor.com", []string{"donor.com"}, 30, svc.SelfSignSubject{}); err != nil {
+		t.Fatalf("generate donor: %v", err)
+	}
+	read := func(domain, f string) string {
+		b, err := os.ReadFile(filepath.Join(selfSignDir, domain, f))
+		if err != nil {
+			t.Fatalf("read %s/%s: %v", domain, f, err)
+		}
+		return string(b)
+	}
+	leaf, ca, key := read("donor.com", "server.crt"), read("donor.com", "ca.crt"), read("donor.com", "server.key")
+
+	// fullchain leaf+ca accepted, written verbatim
+	fullchain := leaf + ca
+	if _, err := service.CreatePublicCert("chain.com", fullchain, key); err != nil {
+		t.Fatalf("fullchain upload should be accepted: %v", err)
+	}
+	written, err := os.ReadFile(filepath.Join(publicDir, "chain.com", "pub"))
+	if err != nil {
+		t.Fatalf("read written: %v", err)
+	}
+	if string(written) != fullchain {
+		t.Fatal("fullchain not written verbatim")
+	}
+
+	// metadata uses the leaf
+	list, err := service.List()
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	for _, item := range list.Items {
+		if item.Name == "chain.com" && item.CommonName != "donor.com" {
+			t.Fatalf("chain.com listed CN = %q, want leaf donor.com", item.CommonName)
+		}
+	}
+
+	// garbage tail rejected
+	if _, err := service.CreatePublicCert("garbage-tail.com", leaf+"trailing garbage", key); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected validation error for garbage tail, got %v", err)
+	}
+
+	// wrong order rejected with chain error
+	if _, err := service.CreatePublicCert("wrong-order.com", ca+leaf, key); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected validation error for wrong order, got %v", err)
+	}
+
+	// chain missing its link rejected: leaf signed by CA, appended unrelated CA
+	if _, err := service.GenerateSelfSign("unrelated.com", []string{"unrelated.com"}, 30, svc.SelfSignSubject{}); err != nil {
+		t.Fatalf("generate unrelated: %v", err)
+	}
+	unrelatedCA := read("unrelated.com", "ca.crt")
+	if _, err := service.CreatePublicCert("broken-chain.com", leaf+unrelatedCA, key); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected validation error for broken chain, got %v", err)
+	}
+
+	// key pasted into pub rejected
+	if _, err := service.CreatePublicCert("key-in-pub.com", key, key); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected validation error for key in pub, got %v", err)
+	}
+
+	// leaf-only still fine
+	if _, err := service.CreatePublicCert("leaf-only.com", leaf, key); err != nil {
+		t.Fatalf("leaf-only upload should be accepted: %v", err)
+	}
+}

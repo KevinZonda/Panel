@@ -115,11 +115,44 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /certs/public:
+    post:
+      tags: [cert]
+      summary: 新增外部（CA 签发）证书
+      operationId: createPublicCert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePublicCertRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertMutationResult'
+        '400':
+          $ref: '#/components/responses/InvalidArgument'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
   /certs/selfsign:
     post:
       tags: [cert]
       summary: 生成自签发证书
       operationId: generateSelfSignCert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateSelfSignRequest'
       responses:
         '201':
           description: 生成成功
@@ -1093,6 +1126,19 @@ components:
         content:
           type: string
           description: PEM 内容
+
+    CreatePublicCertRequest:
+      type: object
+      required: [name, pub, priv]
+      properties:
+        name:
+          type: string
+        pub:
+          type: string
+          description: 证书 PEM 内容，可为 full chain
+        priv:
+          type: string
+          description: 私钥 PEM 内容，必须与证书配对
 
     GenerateSelfSignRequest:
       type: object

@@ -89,6 +89,8 @@ func (w *Web) InitRoutes(engine *gin.Engine) error {
 	ui.POST("/nginx/sites/:name/delete", authn, admin, w.deleteSite)
 
 	ui.GET("/certs", authn, w.certListPage)
+	ui.GET("/certs/public", authn, admin, w.uploadPublicPage)
+	ui.POST("/certs/public", authn, admin, w.uploadPublic)
 	ui.GET("/certs/selfsign", authn, admin, w.generateSelfSignPage)
 	ui.POST("/certs/selfsign", authn, admin, w.generateSelfSign)
 	// gin's router panics when a static segment and a wildcard share a

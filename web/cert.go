@@ -22,6 +22,30 @@ func (w *Web) certListPage(c *gin.Context) {
 	w.render(c, http.StatusOK, "certs.html", data)
 }
 
+func (w *Web) uploadPublicPage(c *gin.Context) {
+	w.render(c, http.StatusOK, "cert_upload.html", gin.H{
+		"Title": "Add External Certificate",
+	})
+}
+
+func (w *Web) uploadPublic(c *gin.Context) {
+	name := strings.TrimSpace(c.PostForm("name"))
+	pub := c.PostForm("pub")
+	priv := c.PostForm("priv")
+
+	if _, err := w.certSvc.CreatePublicCert(name, pub, priv); err != nil {
+		w.render(c, http.StatusOK, "cert_upload.html", gin.H{
+			"Title": "Add External Certificate",
+			"Error": errorMessage(err),
+			"Name":  name,
+			"Pub":   pub,
+			"Priv":  priv,
+		})
+		return
+	}
+	redirectMsg(c, "/ui/certs", "external certificate added")
+}
+
 func (w *Web) generateSelfSignPage(c *gin.Context) {
 	w.render(c, http.StatusOK, "cert_generate.html", gin.H{
 		"Title":   "Generate Self-Signed Certificate",

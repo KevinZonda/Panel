@@ -42,6 +42,12 @@ type UploadCertFileRequest struct {
 	Content string `json:"content" binding:"required,max=1048576"`
 }
 
+type CreatePublicCertRequest struct {
+	Name string `json:"name" binding:"required,min=1,max=128"`
+	Pub  string `json:"pub" binding:"required,max=1048576"`
+	Priv string `json:"priv" binding:"required,max=1048576"`
+}
+
 type GenerateSelfSignRequest struct {
 	Name         string   `json:"name" binding:"required,min=1,max=128"`
 	DNSNames     []string `json:"dns_names" binding:"required,min=1,max=32"`

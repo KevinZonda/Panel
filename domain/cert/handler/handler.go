@@ -56,6 +56,19 @@ func (h *Handler) UploadFile(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func (h *Handler) CreatePublic(c *gin.Context) {
+	var req apimod.CreatePublicCertRequest
+	if !httpx.BindJSON(c, &req) {
+		return
+	}
+	resp, err := h.svc.CreatePublicCert(req.Name, req.Pub, req.Priv)
+	if err != nil {
+		httpx.ServiceError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, resp)
+}
+
 func (h *Handler) GenerateSelfSign(c *gin.Context) {
 	var req apimod.GenerateSelfSignRequest
 	if !httpx.BindJSON(c, &req) {

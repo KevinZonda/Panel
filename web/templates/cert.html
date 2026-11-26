@@ -43,7 +43,7 @@
 {{range .Cert.Files}}
 <h3>{{.Name}}</h3>
 <form method="post" action="/ui/certs/{{$.Cert.Type}}/{{$.Cert.Name}}/files/{{.Name}}">
-<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+<input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
 <p><textarea name="content" rows="12" cols="80" placeholder="paste PEM content here"></textarea></p>
 <p><button type="submit">Replace {{.Name}}</button></p>
 </form>
