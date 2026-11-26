@@ -75,21 +75,40 @@ func (s *Service) Login(username, password string) (*apimod.LoginResponse, error
 		return nil, err
 	}
 	tokenHash := cryptox.SHA256Str(token)
-	now := time.Now()
-	expiresAt := now.Add(s.tokenTTL)
-	session := &dbmod.AuthSession{
-		UserID:    user.ID,
-		TokenHash: tokenHash,
-		CreatedAt: now,
-		ExpiresAt: expiresAt,
-	}
 
+	var expiresAt time.Time
 	err = s.db.Transaction(func(tx *gorm.DB) error {
+		currentUser, err := userdao.FindUserByID(tx, user.ID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return apperr.ErrInvalidCredentials
+		}
+		if err != nil {
+			return err
+		}
+		if currentUser.PasswordHash != user.PasswordHash || currentUser.Username != user.Username {
+			return apperr.ErrInvalidCredentials
+		}
+		if currentUser.Status != models.UserStatusActive {
+			return apperr.ErrUserDisabled
+		}
+
+		now := time.Now()
+		expiresAt = now.Add(s.tokenTTL)
+		session := &dbmod.AuthSession{
+			UserID:    currentUser.ID,
+			TokenHash: tokenHash,
+			CreatedAt: now,
+			ExpiresAt: expiresAt,
+		}
 		if err := authdao.CreateSession(tx, session); err != nil {
 			return err
 		}
-		user.LastLoginAt = &now
-		return userdao.UpdateUser(tx, user)
+		if err := userdao.UpdateLastLoginAt(tx, currentUser.ID, now); err != nil {
+			return err
+		}
+		currentUser.LastLoginAt = &now
+		user = currentUser
+		return nil
 	})
 	if err != nil {
 		return nil, err

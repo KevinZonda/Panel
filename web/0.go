@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	authsvc "github.com/KevinZonda/Panel/domain/auth/svc"
+	certsvc "github.com/KevinZonda/Panel/domain/cert/svc"
 	nginxsvc "github.com/KevinZonda/Panel/domain/nginx/svc"
 	systemsvc "github.com/KevinZonda/Panel/domain/system/svc"
 	usersvc "github.com/KevinZonda/Panel/domain/user/svc"
@@ -19,6 +20,7 @@ type Web struct {
 	userSvc   *usersvc.Service
 	systemSvc *systemsvc.Service
 	nginxSvc  *nginxsvc.Service
+	certSvc   *certsvc.Service
 }
 
 func New(
@@ -26,12 +28,14 @@ func New(
 	userSvc *usersvc.Service,
 	systemSvc *systemsvc.Service,
 	nginxSvc *nginxsvc.Service,
+	certSvc *certsvc.Service,
 ) *Web {
 	return &Web{
 		authSvc:   authSvc,
 		userSvc:   userSvc,
 		systemSvc: systemSvc,
 		nginxSvc:  nginxSvc,
+		certSvc:   certSvc,
 	}
 }
 
@@ -83,6 +87,13 @@ func (w *Web) InitRoutes(engine *gin.Engine) error {
 	ui.POST("/nginx/sites/:name", authn, admin, w.updateSite)
 	ui.GET("/nginx/sites/:name/delete", authn, admin, w.deleteSitePage)
 	ui.POST("/nginx/sites/:name/delete", authn, admin, w.deleteSite)
+
+	ui.GET("/certs", authn, w.certListPage)
+	ui.POST("/certs/selfsign", authn, admin, w.generateSelfSign)
+	ui.GET("/certs/:type/:name", authn, w.certPage)
+	ui.POST("/certs/:type/:name/files/:file", authn, admin, w.uploadCertFile)
+	ui.GET("/certs/:type/:name/delete", authn, admin, w.deleteCertPage)
+	ui.POST("/certs/:type/:name/delete", authn, admin, w.deleteCert)
 
 	ui.GET("/users", authn, admin, w.userListPage)
 	ui.POST("/users", authn, admin, w.createUser)

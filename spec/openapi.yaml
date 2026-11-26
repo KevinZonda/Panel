@@ -100,6 +100,172 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /certs:
+    get:
+      tags: [cert]
+      summary: 列出所有证书
+      operationId: listCerts
+      responses:
+        '200':
+          description: 证书列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /certs/selfsign:
+    post:
+      tags: [cert]
+      summary: 生成自签发证书
+      operationId: generateSelfSignCert
+      responses:
+        '201':
+          description: 生成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertMutationResult'
+        '400':
+          $ref: '#/components/responses/InvalidArgument'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /certs/{type}/{name}:
+    get:
+      tags: [cert]
+      summary: 证书详情
+      operationId: getCert
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [public, selfsign]
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 证书详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [cert]
+      summary: 删除证书
+      operationId: deleteCert
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [public, selfsign]
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 删除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /certs/{type}/{name}/files/{file}:
+    get:
+      tags: [cert]
+      summary: 读取证书文件内容（仅 admin）
+      operationId: readCertFile
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [public, selfsign]
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: file
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 文件内容
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [content]
+                properties:
+                  content:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [cert]
+      summary: 上传或替换证书文件
+      operationId: uploadCertFile
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [public, selfsign]
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: file
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadCertFileRequest'
+      responses:
+        '204':
+          description: 更新成功
+        '400':
+          $ref: '#/components/responses/InvalidArgument'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /users:
     get:
       tags: [users]
@@ -851,6 +1017,107 @@ components:
         boot_time:
           type: string
           format: date-time
+
+    CertFileInfo:
+      type: object
+      required: [name, size_bytes, modified_at, is_private]
+      properties:
+        name:
+          type: string
+        size_bytes:
+          type: integer
+        modified_at:
+          type: string
+          format: date-time
+        is_private:
+          type: boolean
+          description: 是否为私钥文件
+
+    CertSummary:
+      type: object
+      required: [name, type, expired]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [public, selfsign]
+        common_name:
+          type: string
+        dns_names:
+          type: array
+          items:
+            type: string
+        issuer:
+          type: string
+        not_before:
+          type: string
+          format: date-time
+        not_after:
+          type: string
+          format: date-time
+        days_left:
+          type: integer
+        expired:
+          type: boolean
+        parse_error:
+          type: string
+
+    CertList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CertSummary'
+
+    CertDetail:
+      allOf:
+        - $ref: '#/components/schemas/CertSummary'
+        - type: object
+          properties:
+            serial_number:
+              type: string
+            signature_algorithm:
+              type: string
+            files:
+              type: array
+              items:
+                $ref: '#/components/schemas/CertFileInfo'
+
+    UploadCertFileRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          description: PEM 内容
+
+    GenerateSelfSignRequest:
+      type: object
+      required: [name, dns_names, days]
+      properties:
+        name:
+          type: string
+        dns_names:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        days:
+          type: integer
+          minimum: 1
+          maximum: 3650
+
+    CertMutationResult:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
 
     SystemStatus:
       type: object

@@ -1,0 +1,13 @@
+{{template "head" .}}
+
+{{if .Cert}}
+<p>Are you sure you want to delete certificate <strong>{{.Cert.Name}}</strong> ({{.Cert.Type}})?</p>
+<p>The whole directory and all files inside it will be removed.</p>
+<form method="post" action="/ui/certs/{{.Cert.Type}}/{{.Cert.Name}}/delete">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+<button type="submit">Yes, delete</button>
+</form>
+<p><a href="/ui/certs/{{.Cert.Type}}/{{.Cert.Name}}">Cancel</a></p>
+{{end}}
+
+{{template "foot" .}}

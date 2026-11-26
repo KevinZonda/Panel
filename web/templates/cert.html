@@ -1,0 +1,58 @@
+{{template "head" .}}
+
+{{if .Cert}}
+<h2>Details</h2>
+{{if .Cert.ParseError}}
+<p><strong>Parse error: {{.Cert.ParseError}}</strong></p>
+{{else}}
+<table border="1">
+<tr><th>Type</th><td>{{.Cert.Type}}</td></tr>
+<tr><th>Common name</th><td>{{.Cert.CommonName}}</td></tr>
+<tr><th>DNS names</th><td>{{range $i, $d := .Cert.DNSNames}}{{if $i}}, {{end}}{{$d}}{{end}}</td></tr>
+<tr><th>Issuer</th><td>{{.Cert.Issuer}}</td></tr>
+<tr><th>Serial</th><td>{{.Cert.SerialNumber}}</td></tr>
+<tr><th>Signature algorithm</th><td>{{.Cert.SignatureAlg}}</td></tr>
+<tr><th>Valid from</th><td>{{fmtTime .Cert.NotBefore}}</td></tr>
+<tr><th>Valid until</th><td>{{fmtTime .Cert.NotAfter}}</td></tr>
+<tr><th>Days left</th><td>{{if .Cert.Expired}}<strong>expired</strong>{{else}}{{.Cert.DaysLeft}}{{end}}</td></tr>
+</table>
+{{end}}
+
+<h2>Files</h2>
+<table border="1">
+<tr><th>Name</th><th>Size</th><th>Modified</th><th>View</th></tr>
+{{range .Cert.Files}}
+<tr>
+<td>{{.Name}}{{if .IsPrivate}} (private){{end}}</td>
+<td>{{.SizeBytes}} B</td>
+<td>{{fmtTime .ModifiedAt}}</td>
+<td>
+{{if .IsPrivate}}{{if eq $.User.Role "admin"}}<a href="/ui/certs/{{$.Cert.Type}}/{{$.Cert.Name}}?file={{.Name}}">view</a>{{else}}admin only{{end}}{{else}}<a href="/ui/certs/{{$.Cert.Type}}/{{$.Cert.Name}}?file={{.Name}}">view</a>{{end}}
+</td>
+</tr>
+{{end}}
+</table>
+
+{{if .FileContent}}
+<h2>Content of {{.FileName}}</h2>
+<pre>{{.FileContent}}</pre>
+{{end}}
+
+{{if eq .User.Role "admin"}}
+<h2>Replace file</h2>
+{{range .Cert.Files}}
+<h3>{{.Name}}</h3>
+<form method="post" action="/ui/certs/{{$.Cert.Type}}/{{$.Cert.Name}}/files/{{.Name}}">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+<p><textarea name="content" rows="12" cols="80" placeholder="paste PEM content here"></textarea></p>
+<p><button type="submit">Replace {{.Name}}</button></p>
+</form>
+{{end}}
+
+<h2>Delete</h2>
+<p><a href="/ui/certs/{{.Cert.Type}}/{{.Cert.Name}}/delete">Delete this certificate</a></p>
+{{end}}
+{{end}}
+
+<p><a href="/ui/certs">Back to certificates</a></p>
+{{template "foot" .}}

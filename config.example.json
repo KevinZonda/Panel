@@ -12,6 +12,13 @@
   "bootstrap_admin_username": "admin",
   "bootstrap_admin_password": "",
 
+  "cert": {
+    // Public (CA-signed) certificates: {public_dir}/{domain}/priv and pub.
+    "public_dir": "/var/cert",
+    // Self-signed certificates: {selfsign_dir}/{domain}/ca.crt, server.crt, server.key.
+    "selfsign_dir": "/var/cert-self-sign",
+  },
+
   "nginx": {
     "sites_enabled_dir": "/etc/nginx/sites-enabled",
     "backup_dir": "/var/lib/kvzd-panel/nginx-backups",

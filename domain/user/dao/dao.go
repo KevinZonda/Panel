@@ -2,6 +2,7 @@ package dao
 
 import (
 	"errors"
+	"time"
 
 	"github.com/KevinZonda/Panel/models/dbmod"
 	"gorm.io/gorm"
@@ -43,6 +44,12 @@ func CreateUser(db *gorm.DB, user *dbmod.User) error {
 
 func UpdateUser(db *gorm.DB, user *dbmod.User) error {
 	return db.Save(user).Error
+}
+
+func UpdateLastLoginAt(db *gorm.DB, id uint, at time.Time) error {
+	return db.Model(&dbmod.User{}).
+		Where("id = ?", id).
+		UpdateColumn("last_login_at", at).Error
 }
 
 func DeleteUser(db *gorm.DB, id uint) error {

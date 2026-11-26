@@ -24,6 +24,13 @@ func TestLoginValidateTokenAndLogout(t *testing.T) {
 	if _, err := service.Login("admin", "wrong-password"); !errors.Is(err, apperr.ErrInvalidCredentials) {
 		t.Fatalf("expected invalid credentials, got %v", err)
 	}
+	var beforeLogin dbmod.User
+	if err := db.Where("username = ?", "admin").First(&beforeLogin).Error; err != nil {
+		t.Fatalf("load user before login: %v", err)
+	}
+	if beforeLogin.LastLoginAt != nil {
+		t.Fatal("failed login must leave last_login_at unset")
+	}
 
 	login, err := service.Login("admin", "password123")
 	if err != nil {
@@ -39,6 +46,12 @@ func TestLoginValidateTokenAndLogout(t *testing.T) {
 	}
 	if user.Username != "admin" || session.UserID != user.ID {
 		t.Fatalf("unexpected user/session: %#v %#v", user, session)
+	}
+	if login.User.LastLoginAt == nil || user.LastLoginAt == nil || !user.LastLoginAt.Equal(*login.User.LastLoginAt) {
+		t.Fatal("login response and stored user must have the same last_login_at")
+	}
+	if !user.UpdatedAt.Equal(beforeLogin.UpdatedAt) || !login.User.UpdatedAt.Equal(beforeLogin.UpdatedAt) {
+		t.Fatal("login must leave updated_at unchanged")
 	}
 
 	if err := service.Logout(session.ID); err != nil {

@@ -9,7 +9,7 @@ FROM debian:bookworm-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends nginx procps ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /var/lib/kvzd-panel /etc/kvzd-panel
+    && mkdir -p /var/lib/kvzd-panel /etc/kvzd-panel /var/cert /var/cert-self-sign
 
 COPY --from=build /out/panel /usr/local/bin/panel
 COPY deploy/docker/config.json /etc/kvzd-panel/config.json

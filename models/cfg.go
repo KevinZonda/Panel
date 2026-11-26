@@ -19,6 +19,8 @@ type Config struct {
 	NginxServiceName       string
 	NginxControlMode       string
 	NginxCommandTimeout    time.Duration
+	CertPublicDir          string
+	CertSelfSignDir        string
 	BootstrapAdminUsername string
 	BootstrapAdminPassword string
 }

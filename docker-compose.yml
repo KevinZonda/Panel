@@ -8,6 +8,8 @@ services:
       - "8081:80"     # nginx demo site
     volumes:
       - panel-data:/var/lib/kvzd-panel
+      - panel-certs:/var/cert
+      - panel-selfsign-certs:/var/cert-self-sign
     environment:
       # Dev-only bootstrap credentials. Override before exposing anywhere.
       PANEL_BOOTSTRAP_ADMIN_PASSWORD: ${PANEL_ADMIN_PASSWORD:-admin123456}
@@ -15,3 +17,5 @@ services:
 
 volumes:
   panel-data:
+  panel-certs:
+  panel-selfsign-certs:

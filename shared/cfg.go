@@ -27,6 +27,12 @@ type fileConfig struct {
 	BootstrapAdminUsername *string          `json:"bootstrap_admin_username"`
 	BootstrapAdminPassword *string          `json:"bootstrap_admin_password"`
 	Nginx                  *fileNginxConfig `json:"nginx"`
+	Cert                   *fileCertConfig  `json:"cert"`
+}
+
+type fileCertConfig struct {
+	PublicDir   *string `json:"public_dir"`
+	SelfSignDir *string `json:"selfsign_dir"`
 }
 
 type fileNginxConfig struct {
@@ -66,6 +72,8 @@ func defaultConfig() *models.Config {
 		NginxBackupDir:         "/var/lib/kvzd-panel/nginx-backups",
 		NginxServiceName:       "nginx",
 		NginxControlMode:       models.NginxControlModeSystemd,
+		CertPublicDir:          "/var/cert",
+		CertSelfSignDir:        "/var/cert-self-sign",
 		NginxCommandTimeout:    10 * time.Second,
 		BootstrapAdminUsername: "admin",
 		BootstrapAdminPassword: "",
@@ -140,6 +148,14 @@ func applyFileConfig(cfg *models.Config, fc *fileConfig) {
 	if fc.BootstrapAdminPassword != nil {
 		cfg.BootstrapAdminPassword = *fc.BootstrapAdminPassword
 	}
+	if fc.Cert != nil {
+		if fc.Cert.PublicDir != nil {
+			cfg.CertPublicDir = strings.TrimSpace(*fc.Cert.PublicDir)
+		}
+		if fc.Cert.SelfSignDir != nil {
+			cfg.CertSelfSignDir = strings.TrimSpace(*fc.Cert.SelfSignDir)
+		}
+	}
 	if fc.Nginx != nil {
 		if fc.Nginx.SitesEnabledDir != nil {
 			cfg.NginxSitesEnabledDir = strings.TrimSpace(*fc.Nginx.SitesEnabledDir)
@@ -198,6 +214,12 @@ func applyEnvOverrides(cfg *models.Config) error {
 	if v, ok := envString("PANEL_NGINX_CONTROL_MODE"); ok {
 		cfg.NginxControlMode = v
 	}
+	if v, ok := envString("PANEL_CERT_PUBLIC_DIR"); ok {
+		cfg.CertPublicDir = v
+	}
+	if v, ok := envString("PANEL_CERT_SELFSIGN_DIR"); ok {
+		cfg.CertSelfSignDir = v
+	}
 	if v, ok, err := envInt("PANEL_NGINX_COMMAND_TIMEOUT_SECONDS"); err != nil {
 		return err
 	} else if ok {
@@ -237,6 +259,12 @@ func validateConfig(cfg *models.Config) error {
 	}
 	if cfg.NginxCommandTimeout <= 0 {
 		return fmt.Errorf("nginx.command_timeout_seconds must be positive")
+	}
+	if cfg.CertPublicDir == "" {
+		return fmt.Errorf("cert.public_dir must not be empty")
+	}
+	if cfg.CertSelfSignDir == "" {
+		return fmt.Errorf("cert.selfsign_dir must not be empty")
 	}
 	return nil
 }

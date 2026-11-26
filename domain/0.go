@@ -2,6 +2,7 @@ package domain
 
 import (
 	"github.com/KevinZonda/Panel/domain/auth"
+	"github.com/KevinZonda/Panel/domain/cert"
 	"github.com/KevinZonda/Panel/domain/nginx"
 	"github.com/KevinZonda/Panel/domain/system"
 	"github.com/KevinZonda/Panel/domain/user"
@@ -62,11 +63,23 @@ func InitRoute(engine *gin.Engine, db *gorm.DB, cfg *models.Config) error {
 		return err
 	}
 
+	certDomain, err := cert.New(cert.Params{
+		PublicDir:   cfg.CertPublicDir,
+		SelfSignDir: cfg.CertSelfSignDir,
+	})
+	if err != nil {
+		return err
+	}
+	if err := certDomain.InitHttp(api, authn, admin); err != nil {
+		return err
+	}
+
 	webUI := web.New(
 		authDomain.Service(),
 		userDomain.Service(),
 		systemDomain.Service(),
 		nginxDomain.Service(),
+		certDomain.Service(),
 	)
 	return webUI.InitRoutes(engine)
 }
