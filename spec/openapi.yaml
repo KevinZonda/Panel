@@ -826,10 +826,38 @@ components:
           type: string
           format: date-time
 
+    HostInfo:
+      type: object
+      required: [hostname, os, platform, platform_family, platform_version, kernel_version, kernel_arch, boot_time]
+      properties:
+        hostname:
+          type: string
+        os:
+          type: string
+          description: 操作系统类型，例如 linux、darwin
+        platform:
+          type: string
+          description: 发行版或平台名称，例如 ubuntu
+        platform_family:
+          type: string
+        platform_version:
+          type: string
+        kernel_version:
+          type: string
+          description: uname 内核版本
+        kernel_arch:
+          type: string
+          description: uname 机器架构，例如 x86_64
+        boot_time:
+          type: string
+          format: date-time
+
     SystemStatus:
       type: object
-      required: [cpu, memory, uptime_seconds, collected_at]
+      required: [host, cpu, memory, uptime_seconds, collected_at]
       properties:
+        host:
+          $ref: '#/components/schemas/HostInfo'
         cpu:
           type: object
           required: [usage_percent, cores]

@@ -87,6 +87,23 @@ func (s *Service) Memory(ctx context.Context) (*apimod.MemoryStatus, error) {
 	}, nil
 }
 
+func (s *Service) Host(ctx context.Context) (*apimod.HostInfo, error) {
+	info, err := host.InfoWithContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &apimod.HostInfo{
+		Hostname:        info.Hostname,
+		OS:              info.OS,
+		Platform:        info.Platform,
+		PlatformFamily:  info.PlatformFamily,
+		PlatformVersion: info.PlatformVersion,
+		KernelVersion:   info.KernelVersion,
+		KernelArch:      info.KernelArch,
+		BootTime:        time.Unix(int64(info.BootTime), 0),
+	}, nil
+}
+
 func (s *Service) Status(ctx context.Context) (*apimod.SystemStatus, error) {
 	cpuStatus, err := s.CPU(ctx, 200*time.Millisecond)
 	if err != nil {
@@ -100,8 +117,13 @@ func (s *Service) Status(ctx context.Context) (*apimod.SystemStatus, error) {
 	if err != nil {
 		return nil, err
 	}
+	hostInfo, err := s.Host(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	return &apimod.SystemStatus{
+		Host: *hostInfo,
 		CPU: apimod.SystemCpuSummary{
 			UsagePercent: cpuStatus.UsagePercent,
 			Cores:        cpuStatus.Cores,

@@ -1,5 +1,19 @@
 {{template "head" .}}
 
+<h2>Host</h2>
+{{if .HostError}}
+<p>Error: {{.HostError}}</p>
+{{else if .Host}}
+<table border="1">
+<tr><th>Hostname</th><td>{{.Host.Hostname}}</td></tr>
+<tr><th>OS</th><td>{{.Host.OS}}</td></tr>
+<tr><th>Platform</th><td>{{.Host.Platform}} {{.Host.PlatformVersion}} ({{.Host.PlatformFamily}})</td></tr>
+<tr><th>Kernel version</th><td>{{.Host.KernelVersion}}</td></tr>
+<tr><th>Kernel arch</th><td>{{.Host.KernelArch}}</td></tr>
+<tr><th>Boot time</th><td>{{fmtTime .Host.BootTime}}</td></tr>
+</table>
+{{end}}
+
 <h2>CPU</h2>
 {{if .CPUError}}
 <p>Error: {{.CPUError}}</p>

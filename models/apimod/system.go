@@ -47,7 +47,19 @@ type SystemMemorySummary struct {
 	UsagePercent   float64 `json:"usage_percent"`
 }
 
+type HostInfo struct {
+	Hostname        string    `json:"hostname"`
+	OS              string    `json:"os"`
+	Platform        string    `json:"platform"`
+	PlatformFamily  string    `json:"platform_family"`
+	PlatformVersion string    `json:"platform_version"`
+	KernelVersion   string    `json:"kernel_version"`
+	KernelArch      string    `json:"kernel_arch"`
+	BootTime        time.Time `json:"boot_time"`
+}
+
 type SystemStatus struct {
+	Host          HostInfo            `json:"host"`
 	CPU           SystemCpuSummary    `json:"cpu"`
 	Memory        SystemMemorySummary `json:"memory"`
 	UptimeSeconds uint64              `json:"uptime_seconds"`

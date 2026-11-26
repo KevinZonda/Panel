@@ -5,6 +5,9 @@
 <p>Error: {{.SystemError}}</p>
 {{else if .System}}
 <table border="1">
+<tr><th>Hostname</th><td>{{.System.Host.Hostname}}</td></tr>
+<tr><th>OS</th><td>{{.System.Host.Platform}} {{.System.Host.PlatformVersion}} ({{.System.Host.OS}})</td></tr>
+<tr><th>Kernel</th><td>{{.System.Host.KernelVersion}} {{.System.Host.KernelArch}}</td></tr>
 <tr><th>CPU usage</th><td>{{printf "%.1f" .System.CPU.UsagePercent}}% ({{.System.CPU.Cores}} cores)</td></tr>
 <tr><th>Load average</th><td>{{printf "%.2f" .System.CPU.LoadAverage.Load1}} / {{printf "%.2f" .System.CPU.LoadAverage.Load5}} / {{printf "%.2f" .System.CPU.LoadAverage.Load15}}</td></tr>
 <tr><th>Memory</th><td>{{fmtBytes .System.Memory.UsedBytes}} / {{fmtBytes .System.Memory.TotalBytes}} ({{printf "%.1f" .System.Memory.UsagePercent}}%)</td></tr>
