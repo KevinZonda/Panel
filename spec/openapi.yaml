@@ -1096,7 +1096,7 @@ components:
 
     GenerateSelfSignRequest:
       type: object
-      required: [name, dns_names, days]
+      required: [name, dns_names]
       properties:
         name:
           type: string
@@ -1109,6 +1109,25 @@ components:
           type: integer
           minimum: 1
           maximum: 3650
+          description: 有效期天数，缺省 3650
+        country:
+          type: string
+          description: subject C，缺省 GB
+        province:
+          type: string
+          description: subject ST，缺省 Greater London
+        locality:
+          type: string
+          description: subject L，缺省 London
+        organization:
+          type: string
+          description: subject O，缺省 KevinZonda Research
+        org_unit:
+          type: string
+          description: subject OU，缺省 One-Time Certificate
+        ca_common_name:
+          type: string
+          description: CA CN，缺省 KevinZonda One-Time Certificate Authority
 
     CertMutationResult:
       type: object

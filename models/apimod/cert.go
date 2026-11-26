@@ -43,9 +43,15 @@ type UploadCertFileRequest struct {
 }
 
 type GenerateSelfSignRequest struct {
-	Name     string   `json:"name" binding:"required,min=1,max=128"`
-	DNSNames []string `json:"dns_names" binding:"required,min=1,max=32"`
-	Days     int      `json:"days" binding:"required,min=1,max=3650"`
+	Name         string   `json:"name" binding:"required,min=1,max=128"`
+	DNSNames     []string `json:"dns_names" binding:"required,min=1,max=32"`
+	Days         int      `json:"days" binding:"omitempty,min=1,max=3650"`
+	Country      string   `json:"country" binding:"omitempty,max=2"`
+	Province     string   `json:"province" binding:"omitempty,max=128"`
+	Locality     string   `json:"locality" binding:"omitempty,max=128"`
+	Organization string   `json:"organization" binding:"omitempty,max=128"`
+	OrgUnit      string   `json:"org_unit" binding:"omitempty,max=128"`
+	CACommonName string   `json:"ca_common_name" binding:"omitempty,max=128"`
 }
 
 type CertMutationResult struct {

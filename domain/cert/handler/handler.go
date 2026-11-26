@@ -61,7 +61,14 @@ func (h *Handler) GenerateSelfSign(c *gin.Context) {
 	if !httpx.BindJSON(c, &req) {
 		return
 	}
-	resp, err := h.svc.GenerateSelfSign(req.Name, req.DNSNames, req.Days)
+	resp, err := h.svc.GenerateSelfSign(req.Name, req.DNSNames, req.Days, svc.SelfSignSubject{
+		Country:      req.Country,
+		Province:     req.Province,
+		Locality:     req.Locality,
+		Organization: req.Organization,
+		OrgUnit:      req.OrgUnit,
+		CACommonName: req.CACommonName,
+	})
 	if err != nil {
 		httpx.ServiceError(c, err)
 		return

@@ -22,10 +22,27 @@ func setup(t *testing.T) (*svc.Service, string, string) {
 	return svc.NewService(publicDir, selfSignDir), publicDir, selfSignDir
 }
 
+func readCertFile(t *testing.T, path string) *x509.Certificate {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	block, _ := pem.Decode(raw)
+	if block == nil {
+		t.Fatalf("%s is not PEM", path)
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("parse %s: %v", path, err)
+	}
+	return cert
+}
+
 func TestGenerateSelfSignCreatesValidChain(t *testing.T) {
 	service, _, selfSignDir := setup(t)
 
-	_, err := service.GenerateSelfSign("example.com", []string{"example.com", "www.example.com"}, 365)
+	_, err := service.GenerateSelfSign("example.com", []string{"example.com", "www.example.com"}, 365, svc.SelfSignSubject{})
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
@@ -64,6 +81,22 @@ func TestGenerateSelfSignCreatesValidChain(t *testing.T) {
 	ca := readCert("ca.crt")
 	server := readCert("server.crt")
 
+	if ca.Subject.CommonName != svc.DefaultCACommonName {
+		t.Fatalf("ca CN = %q, want %q", ca.Subject.CommonName, svc.DefaultCACommonName)
+	}
+	if len(ca.Subject.Country) != 1 || ca.Subject.Country[0] != "GB" {
+		t.Fatalf("ca country = %v, want [GB]", ca.Subject.Country)
+	}
+	if len(ca.Subject.Organization) != 1 || ca.Subject.Organization[0] != "KevinZonda Research" {
+		t.Fatalf("ca org = %v", ca.Subject.Organization)
+	}
+	if server.Subject.CommonName != "example.com" {
+		t.Fatalf("server CN = %q", server.Subject.CommonName)
+	}
+	if len(server.Subject.OrganizationalUnit) != 1 || server.Subject.OrganizationalUnit[0] != "One-Time Certificate" {
+		t.Fatalf("server OU = %v", server.Subject.OrganizationalUnit)
+	}
+
 	if !ca.IsCA {
 		t.Fatal("ca.crt is not a CA")
 	}
@@ -89,31 +122,34 @@ func TestGenerateSelfSignCreatesValidChain(t *testing.T) {
 
 func TestGenerateSelfSignConflict(t *testing.T) {
 	service, _, _ := setup(t)
-	if _, err := service.GenerateSelfSign("example.com", []string{"example.com"}, 30); err != nil {
+	if _, err := service.GenerateSelfSign("example.com", []string{"example.com"}, 30, svc.SelfSignSubject{}); err != nil {
 		t.Fatalf("first generate: %v", err)
 	}
-	if _, err := service.GenerateSelfSign("example.com", []string{"example.com"}, 30); !errors.Is(err, apperr.ErrConflict) {
+	if _, err := service.GenerateSelfSign("example.com", []string{"example.com"}, 30, svc.SelfSignSubject{}); !errors.Is(err, apperr.ErrConflict) {
 		t.Fatalf("expected conflict, got %v", err)
 	}
 }
 
 func TestGenerateSelfSignRejectsBadInput(t *testing.T) {
 	service, _, _ := setup(t)
-	if _, err := service.GenerateSelfSign("../evil", []string{"example.com"}, 30); !errors.Is(err, apperr.ErrValidation) {
+	if _, err := service.GenerateSelfSign("../evil", []string{"example.com"}, 30, svc.SelfSignSubject{}); !errors.Is(err, apperr.ErrValidation) {
 		t.Fatalf("expected validation error for path traversal, got %v", err)
 	}
-	if _, err := service.GenerateSelfSign("example.com", nil, 30); !errors.Is(err, apperr.ErrValidation) {
+	if _, err := service.GenerateSelfSign("example.com", nil, 30, svc.SelfSignSubject{}); !errors.Is(err, apperr.ErrValidation) {
 		t.Fatalf("expected validation error for empty dns names, got %v", err)
 	}
-	if _, err := service.GenerateSelfSign("example.com", []string{"example.com"}, 0); !errors.Is(err, apperr.ErrValidation) {
-		t.Fatalf("expected validation error for zero days, got %v", err)
+	if _, err := service.GenerateSelfSign("example.com", []string{"example.com"}, -1, svc.SelfSignSubject{}); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected validation error for negative days, got %v", err)
+	}
+	if _, err := service.GenerateSelfSign("example.com", []string{"example.com"}, 3651, svc.SelfSignSubject{}); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected validation error for days above max, got %v", err)
 	}
 }
 
 func TestListAndGet(t *testing.T) {
 	service, publicDir, _ := setup(t)
 
-	if _, err := service.GenerateSelfSign("self.example.com", []string{"self.example.com"}, 30); err != nil {
+	if _, err := service.GenerateSelfSign("self.example.com", []string{"self.example.com"}, 30, svc.SelfSignSubject{}); err != nil {
 		t.Fatalf("generate: %v", err)
 	}
 
@@ -172,7 +208,7 @@ func TestUploadValidation(t *testing.T) {
 	}
 
 	// a certificate is not a valid private key
-	if _, err := service.GenerateSelfSign("example.com", []string{"example.com"}, 30); err != nil {
+	if _, err := service.GenerateSelfSign("example.com", []string{"example.com"}, 30, svc.SelfSignSubject{}); err != nil {
 		t.Fatalf("generate: %v", err)
 	}
 	caRaw, _ := os.ReadFile(filepath.Join(selfSignDir, "example.com", "ca.crt"))
@@ -183,7 +219,7 @@ func TestUploadValidation(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	service, _, _ := setup(t)
-	if _, err := service.GenerateSelfSign("example.com", []string{"example.com"}, 30); err != nil {
+	if _, err := service.GenerateSelfSign("example.com", []string{"example.com"}, 30, svc.SelfSignSubject{}); err != nil {
 		t.Fatalf("generate: %v", err)
 	}
 	if err := service.Delete(apimod.CertTypeSelfSign, "example.com"); err != nil {
@@ -205,5 +241,44 @@ func TestListIgnoresMissingDirs(t *testing.T) {
 	}
 	if len(list.Items) != 0 {
 		t.Fatalf("expected empty list, got %d items", len(list.Items))
+	}
+}
+
+func TestGenerateSelfSignCustomSubject(t *testing.T) {
+	service, _, selfSignDir := setup(t)
+
+	subject := svc.SelfSignSubject{
+		Country:      "US",
+		Province:     "California",
+		Locality:     "San Francisco",
+		Organization: "Example Inc",
+		OrgUnit:      "Infra",
+		CACommonName: "Example Root CA",
+	}
+	_, err := service.GenerateSelfSign("custom.com", []string{"custom.com"}, 30, subject)
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	caCert := readCertFile(t, filepath.Join(selfSignDir, "custom.com", "ca.crt"))
+	if caCert.Subject.CommonName != "Example Root CA" {
+		t.Fatalf("ca CN = %q", caCert.Subject.CommonName)
+	}
+	if caCert.Subject.Country[0] != "US" || caCert.Subject.Province[0] != "California" || caCert.Subject.Locality[0] != "San Francisco" {
+		t.Fatalf("ca subject = %+v", caCert.Subject)
+	}
+
+	// empty subject falls back to defaults
+	_, err = service.GenerateSelfSign("defaulted.com", []string{"defaulted.com"}, 0, svc.SelfSignSubject{})
+	if err != nil {
+		t.Fatalf("generate defaulted: %v", err)
+	}
+	serverCert := readCertFile(t, filepath.Join(selfSignDir, "defaulted.com", "server.crt"))
+	if serverCert.Subject.Organization[0] != svc.DefaultOrganization {
+		t.Fatalf("default org = %q", serverCert.Subject.Organization[0])
+	}
+	// days=0 falls back to the 3650-day default
+	wantExpiry := time.Now().AddDate(0, 0, svc.DefaultValidDays)
+	if delta := serverCert.NotAfter.Sub(wantExpiry); delta < -time.Hour || delta > time.Hour {
+		t.Fatalf("default validity NotAfter = %v, want ~%v", serverCert.NotAfter, wantExpiry)
 	}
 }

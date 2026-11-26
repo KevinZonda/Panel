@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	certsvc "github.com/KevinZonda/Panel/domain/cert/svc"
 	"github.com/KevinZonda/Panel/lib/authctx"
 	"github.com/KevinZonda/Panel/models"
 	"github.com/gin-gonic/gin"
@@ -21,28 +22,61 @@ func (w *Web) certListPage(c *gin.Context) {
 	w.render(c, http.StatusOK, "certs.html", data)
 }
 
+func (w *Web) generateSelfSignPage(c *gin.Context) {
+	w.render(c, http.StatusOK, "cert_generate.html", gin.H{
+		"Title":   "Generate Self-Signed Certificate",
+		"Subject": defaultSubject(),
+		"Days":    certsvc.DefaultValidDays,
+	})
+}
+
+func defaultSubject() certsvc.SelfSignSubject {
+	return certsvc.SelfSignSubject{
+		Country:      certsvc.DefaultCountry,
+		Province:     certsvc.DefaultProvince,
+		Locality:     certsvc.DefaultLocality,
+		Organization: certsvc.DefaultOrganization,
+		OrgUnit:      certsvc.DefaultOrgUnit,
+		CACommonName: certsvc.DefaultCACommonName,
+	}
+}
+
 func (w *Web) generateSelfSign(c *gin.Context) {
 	name := strings.TrimSpace(c.PostForm("name"))
 	dnsNames := splitCommaList(c.PostForm("dns_names"))
 	days, err := strconv.Atoi(strings.TrimSpace(c.PostForm("days")))
-	if err != nil || days < 1 {
-		days = 365
+	if err != nil {
+		days = certsvc.DefaultValidDays
+	}
+	subject := certsvc.SelfSignSubject{
+		Country:      strings.TrimSpace(c.PostForm("country")),
+		Province:     strings.TrimSpace(c.PostForm("province")),
+		Locality:     strings.TrimSpace(c.PostForm("locality")),
+		Organization: strings.TrimSpace(c.PostForm("organization")),
+		OrgUnit:      strings.TrimSpace(c.PostForm("org_unit")),
+		CACommonName: strings.TrimSpace(c.PostForm("ca_common_name")),
 	}
 
-	if _, err := w.certSvc.GenerateSelfSign(name, dnsNames, days); err != nil {
-		list, listErr := w.certSvc.List()
-		data := gin.H{"Title": "Certificates", "Error": errorMessage(err)}
-		if listErr == nil {
-			data["Certs"] = list.Items
-		}
-		w.render(c, http.StatusOK, "certs.html", data)
+	if _, err := w.certSvc.GenerateSelfSign(name, dnsNames, days, subject); err != nil {
+		w.render(c, http.StatusOK, "cert_generate.html", gin.H{
+			"Title":    "Generate Self-Signed Certificate",
+			"Error":    errorMessage(err),
+			"Subject":  subject,
+			"Days":     days,
+			"Name":     name,
+			"DNSNames": c.PostForm("dns_names"),
+		})
 		return
 	}
 	redirectMsg(c, "/ui/certs", "self-signed certificate generated")
 }
 
+func certType(c *gin.Context) string {
+	return c.GetString("certType")
+}
+
 func (w *Web) certPage(c *gin.Context) {
-	certType := c.Param("type")
+	certType := certType(c)
 	name := c.Param("name")
 	detail, err := w.certSvc.Get(certType, name)
 	if err != nil {
@@ -71,7 +105,7 @@ func (w *Web) certPage(c *gin.Context) {
 }
 
 func (w *Web) uploadCertFile(c *gin.Context) {
-	certType := c.Param("type")
+	certType := certType(c)
 	name := c.Param("name")
 	file := c.Param("file")
 	content := c.PostForm("content")
@@ -89,7 +123,7 @@ func (w *Web) uploadCertFile(c *gin.Context) {
 }
 
 func (w *Web) deleteCertPage(c *gin.Context) {
-	certType := c.Param("type")
+	certType := certType(c)
 	name := c.Param("name")
 	detail, err := w.certSvc.Get(certType, name)
 	if err != nil {
@@ -103,7 +137,7 @@ func (w *Web) deleteCertPage(c *gin.Context) {
 }
 
 func (w *Web) deleteCert(c *gin.Context) {
-	certType := c.Param("type")
+	certType := certType(c)
 	name := c.Param("name")
 	if err := w.certSvc.Delete(certType, name); err != nil {
 		w.renderError(c, http.StatusInternalServerError, errorMessage(err))

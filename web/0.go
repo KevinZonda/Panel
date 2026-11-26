@@ -89,11 +89,24 @@ func (w *Web) InitRoutes(engine *gin.Engine) error {
 	ui.POST("/nginx/sites/:name/delete", authn, admin, w.deleteSite)
 
 	ui.GET("/certs", authn, w.certListPage)
+	ui.GET("/certs/selfsign", authn, admin, w.generateSelfSignPage)
 	ui.POST("/certs/selfsign", authn, admin, w.generateSelfSign)
-	ui.GET("/certs/:type/:name", authn, w.certPage)
-	ui.POST("/certs/:type/:name/files/:file", authn, admin, w.uploadCertFile)
-	ui.GET("/certs/:type/:name/delete", authn, admin, w.deleteCertPage)
-	ui.POST("/certs/:type/:name/delete", authn, admin, w.deleteCert)
+	// gin's router panics when a static segment and a wildcard share a
+	// position, so certificate types are registered as literal segments
+	// instead of a :type parameter; the type is passed through context.
+	for _, certType := range []string{"public", "selfsign"} {
+		certType := certType
+		withType := func(h gin.HandlerFunc) gin.HandlerFunc {
+			return func(c *gin.Context) {
+				c.Set("certType", certType)
+				h(c)
+			}
+		}
+		ui.GET("/certs/"+certType+"/:name", authn, withType(w.certPage))
+		ui.POST("/certs/"+certType+"/:name/files/:file", authn, admin, withType(w.uploadCertFile))
+		ui.GET("/certs/"+certType+"/:name/delete", authn, admin, withType(w.deleteCertPage))
+		ui.POST("/certs/"+certType+"/:name/delete", authn, admin, withType(w.deleteCert))
+	}
 
 	ui.GET("/users", authn, admin, w.userListPage)
 	ui.POST("/users", authn, admin, w.createUser)

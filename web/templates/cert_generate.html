@@ -1,0 +1,46 @@
+{{template "head" .}}
+
+<p><a href="/ui/certs">&larr; Back to certificates</a></p>
+
+{{if .Error}}<p><strong>Error: {{.Error}}</strong></p>{{end}}
+
+<form method="post" action="/ui/certs/selfsign">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+
+<h3>Certificate identity</h3>
+<p>
+<label for="name">Directory name</label><br>
+<input type="text" id="name" name="name" required pattern="[A-Za-z0-9._-]{1,128}" value="{{.Name}}"><br>
+<small>letters, digits, dot, underscore, dash only; e.g. example.com</small>
+</p>
+<p>
+<label for="dns_names">DNS names (comma separated)</label><br>
+<input type="text" id="dns_names" name="dns_names" required size="60" placeholder="example.com, www.example.com" value="{{.DNSNames}}"><br>
+<small>the first entry becomes the server certificate common name</small>
+</p>
+<p>
+<label for="days">Validity (days)</label><br>
+<input type="number" id="days" name="days" value="{{.Days}}" min="1" max="3650">
+</p>
+
+<h3>Certificate authority</h3>
+<p>
+<label for="ca_common_name">CA common name</label><br>
+<input type="text" id="ca_common_name" name="ca_common_name" size="60" value="{{.Subject.CACommonName}}">
+</p>
+
+<h3>Subject</h3>
+<table border="1" cellpadding="6">
+<tr><th>Field</th><th>Value</th></tr>
+<tr><td><label for="country">Country (C)</label></td><td><input type="text" id="country" name="country" size="30" maxlength="2" value="{{.Subject.Country}}"></td></tr>
+<tr><td><label for="province">State or province (ST)</label></td><td><input type="text" id="province" name="province" size="30" value="{{.Subject.Province}}"></td></tr>
+<tr><td><label for="locality">Locality (L)</label></td><td><input type="text" id="locality" name="locality" size="30" value="{{.Subject.Locality}}"></td></tr>
+<tr><td><label for="organization">Organization (O)</label></td><td><input type="text" id="organization" name="organization" size="30" value="{{.Subject.Organization}}"></td></tr>
+<tr><td><label for="org_unit">Organizational unit (OU)</label></td><td><input type="text" id="org_unit" name="org_unit" size="30" value="{{.Subject.OrgUnit}}"></td></tr>
+</table>
+<p><small>subject fields apply to both the CA and the server certificate; empty fields fall back to the defaults shown above</small></p>
+
+<p><button type="submit">Generate</button></p>
+</form>
+
+{{template "foot" .}}

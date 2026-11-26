@@ -16,9 +16,62 @@ import (
 	"github.com/KevinZonda/Panel/models/apimod"
 )
 
+// SelfSignSubject carries the x509 subject fields for generated
+// certificates. Empty fields fall back to the KevinZonda conventions.
+type SelfSignSubject struct {
+	Country      string
+	Province     string
+	Locality     string
+	Organization string
+	OrgUnit      string
+	CACommonName string
+}
+
+const (
+	DefaultCountry      = "GB"
+	DefaultProvince     = "Greater London"
+	DefaultLocality     = "London"
+	DefaultOrganization = "KevinZonda Research"
+	DefaultOrgUnit      = "One-Time Certificate"
+	DefaultCACommonName = "KevinZonda One-Time Certificate Authority"
+	DefaultValidDays    = 3650
+)
+
+func (s *SelfSignSubject) withDefaults() {
+	if s.Country == "" {
+		s.Country = DefaultCountry
+	}
+	if s.Province == "" {
+		s.Province = DefaultProvince
+	}
+	if s.Locality == "" {
+		s.Locality = DefaultLocality
+	}
+	if s.Organization == "" {
+		s.Organization = DefaultOrganization
+	}
+	if s.OrgUnit == "" {
+		s.OrgUnit = DefaultOrgUnit
+	}
+	if s.CACommonName == "" {
+		s.CACommonName = DefaultCACommonName
+	}
+}
+
+func (s *SelfSignSubject) pkixName(commonName string) pkix.Name {
+	return pkix.Name{
+		CommonName:         commonName,
+		Country:            []string{s.Country},
+		Province:           []string{s.Province},
+		Locality:           []string{s.Locality},
+		Organization:       []string{s.Organization},
+		OrganizationalUnit: []string{s.OrgUnit},
+	}
+}
+
 // GenerateSelfSign creates a fresh CA plus a server certificate signed by
 // it, writing ca.crt, server.crt and server.key into the domain directory.
-func (s *Service) GenerateSelfSign(name string, dnsNames []string, days int) (*apimod.CertMutationResult, error) {
+func (s *Service) GenerateSelfSign(name string, dnsNames []string, days int, subject SelfSignSubject) (*apimod.CertMutationResult, error) {
 	if !dao.ValidName(name) {
 		return nil, apperr.Validationf("cert name is invalid")
 	}
@@ -26,20 +79,24 @@ func (s *Service) GenerateSelfSign(name string, dnsNames []string, days int) (*a
 	if err != nil {
 		return nil, err
 	}
+	if days == 0 {
+		days = DefaultValidDays
+	}
 	if days < 1 || days > 3650 {
 		return nil, apperr.Validationf("days must be between 1 and 3650")
 	}
+	subject.withDefaults()
 
 	root := s.selfSignDir
 	if dao.DomainExists(root, name) {
 		return nil, apperr.Conflictf("cert already exists")
 	}
 
-	caKey, caCertPEM, caCert, err := generateCA(name)
+	caKey, caCertPEM, caCert, err := generateCA(subject)
 	if err != nil {
 		return nil, err
 	}
-	serverCertPEM, serverKeyPEM, err := generateServerCert(caCert, caKey, cleaned, days)
+	serverCertPEM, serverKeyPEM, err := generateServerCert(caCert, caKey, cleaned, days, subject)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +153,7 @@ func validateDNSNames(names []string) ([]string, error) {
 	return cleaned, nil
 }
 
-func generateCA(name string) (*ecdsa.PrivateKey, []byte, *x509.Certificate, error) {
+func generateCA(subject SelfSignSubject) (*ecdsa.PrivateKey, []byte, *x509.Certificate, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, nil, err
@@ -107,11 +164,8 @@ func generateCA(name string) (*ecdsa.PrivateKey, []byte, *x509.Certificate, erro
 	}
 	now := time.Now()
 	tmpl := &x509.Certificate{
-		SerialNumber: serial,
-		Subject: pkix.Name{
-			CommonName:   name + " CA",
-			Organization: []string{"kvzd-panel self-signed"},
-		},
+		SerialNumber:          serial,
+		Subject:               subject.pkixName(subject.CACommonName),
 		NotBefore:             now.Add(-time.Hour),
 		NotAfter:              now.AddDate(10, 0, 0),
 		IsCA:                  true,
@@ -129,7 +183,7 @@ func generateCA(name string) (*ecdsa.PrivateKey, []byte, *x509.Certificate, erro
 	return key, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), cert, nil
 }
 
-func generateServerCert(caCert *x509.Certificate, caKey *ecdsa.PrivateKey, dnsNames []string, days int) (certPEM, keyPEM []byte, err error) {
+func generateServerCert(caCert *x509.Certificate, caKey *ecdsa.PrivateKey, dnsNames []string, days int, subject SelfSignSubject) (certPEM, keyPEM []byte, err error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
@@ -140,11 +194,8 @@ func generateServerCert(caCert *x509.Certificate, caKey *ecdsa.PrivateKey, dnsNa
 	}
 	now := time.Now()
 	tmpl := &x509.Certificate{
-		SerialNumber: serial,
-		Subject: pkix.Name{
-			CommonName:   dnsNames[0],
-			Organization: []string{"kvzd-panel self-signed"},
-		},
+		SerialNumber:          serial,
+		Subject:               subject.pkixName(dnsNames[0]),
 		DNSNames:              dnsNames,
 		NotBefore:             now.Add(-time.Hour),
 		NotAfter:              now.AddDate(0, 0, days),

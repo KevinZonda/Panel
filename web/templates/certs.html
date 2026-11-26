@@ -19,25 +19,7 @@
 {{end}}
 
 {{if eq .User.Role "admin"}}
-<h2>Generate self-signed certificate</h2>
-<form method="post" action="/ui/certs/selfsign">
-<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-<p>
-<label for="name">Directory name</label><br>
-<input type="text" id="name" name="name" required pattern="[A-Za-z0-9._-]{1,128}"><br>
-<small>letters, digits, dot, underscore, dash only; e.g. example.com</small>
-</p>
-<p>
-<label for="dns_names">DNS names (comma separated)</label><br>
-<input type="text" id="dns_names" name="dns_names" required size="50" placeholder="example.com, www.example.com">
-</p>
-<p>
-<label for="days">Validity (days)</label><br>
-<input type="number" id="days" name="days" value="365" min="1" max="3650">
-</p>
-<p><button type="submit">Generate</button></p>
-</form>
-<p>A fresh CA is generated per certificate; ca.crt, server.crt and server.key are written to the self-signed directory.</p>
+<form method="get" action="/ui/certs/selfsign"><button type="submit">Generate self-signed certificate</button></form>
 {{end}}
 
 {{template "foot" .}}
