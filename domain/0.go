@@ -17,10 +17,10 @@ func InitRoute(engine *gin.Engine, db *gorm.DB, cfg *models.Config) error {
 	api := engine.Group("/api/v1")
 
 	authDomain, err := auth.New(auth.Params{
-		DB:                     db,
-		TokenTTL:               cfg.TokenTTL,
-		BootstrapAdminUsername: cfg.BootstrapAdminUsername,
-		BootstrapAdminPassword: cfg.BootstrapAdminPassword,
+		DB:                         db,
+		TokenTTL:                   cfg.TokenTTL,
+		BootstrapAdminUsername:     cfg.BootstrapAdminUsername,
+		BootstrapAdminPasswordHash: cfg.BootstrapAdminPasswordHash,
 	})
 	if err != nil {
 		return err

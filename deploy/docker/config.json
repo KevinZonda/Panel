@@ -5,6 +5,8 @@
   "listen_addr": ":8080",
   "database_dsn": "file:/var/lib/kvzd-panel/data.db?_foreign_keys=on",
   "gin_mode": "release",
+  // Dev-only initial admin credential. This is the bcrypt hash for admin123456.
+  "bootstrap_admin_password_hash": "$2y$10$HmAYMoZdMdMk75D9obv9SuWBf5wvD.wcZ0iLg5Zl7RvWZpXa8rgwK",
   "nginx": {
     "sites_enabled_dir": "/etc/nginx/sites-enabled",
     "backup_dir": "/var/lib/kvzd-panel/nginx-backups",

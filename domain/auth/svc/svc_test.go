@@ -8,6 +8,7 @@ import (
 
 	"github.com/KevinZonda/Panel/domain/auth/svc"
 	"github.com/KevinZonda/Panel/lib/apperr"
+	"github.com/KevinZonda/Panel/lib/passwordx"
 	"github.com/KevinZonda/Panel/models/dbmod"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -17,7 +18,11 @@ func TestLoginValidateTokenAndLogout(t *testing.T) {
 	db := newTestDB(t)
 	service := svc.NewService(db, time.Hour)
 
-	if err := service.EnsureBootstrapAdmin("admin", "password123"); err != nil {
+	bootstrapHash, err := passwordx.Hash("password123")
+	if err != nil {
+		t.Fatalf("hash bootstrap password: %v", err)
+	}
+	if err := service.EnsureBootstrapAdmin("admin", bootstrapHash); err != nil {
 		t.Fatalf("bootstrap admin: %v", err)
 	}
 
@@ -30,6 +35,9 @@ func TestLoginValidateTokenAndLogout(t *testing.T) {
 	}
 	if beforeLogin.LastLoginAt != nil {
 		t.Fatal("failed login must leave last_login_at unset")
+	}
+	if beforeLogin.PasswordHash != bootstrapHash {
+		t.Fatal("bootstrap admin must store the configured bcrypt hash unchanged")
 	}
 
 	login, err := service.Login("admin", "password123")
@@ -59,6 +67,13 @@ func TestLoginValidateTokenAndLogout(t *testing.T) {
 	}
 	if _, _, err := service.ValidateToken(login.Token); !errors.Is(err, apperr.ErrInvalidCredentials) {
 		t.Fatalf("expected revoked token to be invalid, got %v", err)
+	}
+}
+
+func TestEnsureBootstrapAdminRejectsInvalidHash(t *testing.T) {
+	service := svc.NewService(newTestDB(t), time.Hour)
+	if err := service.EnsureBootstrapAdmin("admin", "not-a-bcrypt-hash"); err == nil {
+		t.Fatal("expected invalid bootstrap hash error")
 	}
 }
 

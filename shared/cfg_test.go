@@ -6,7 +6,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/KevinZonda/Panel/lib/passwordx"
 )
+
+const testBootstrapAdminHash = "$2y$10$HmAYMoZdMdMk75D9obv9SuWBf5wvD.wcZ0iLg5Zl7RvWZpXa8rgwK"
 
 func TestInitCfgLoadsJSONCConfig(t *testing.T) {
 	clearPanelEnv(t)
@@ -20,7 +24,7 @@ func TestInitCfgLoadsJSONCConfig(t *testing.T) {
   "trusted_proxies": ["127.0.0.1"],
   "token_ttl_hours": 2,
   "bootstrap_admin_username": "root",
-  "bootstrap_admin_password": "secret",
+  "bootstrap_admin_password_hash": "$2y$10$HmAYMoZdMdMk75D9obv9SuWBf5wvD.wcZ0iLg5Zl7RvWZpXa8rgwK",
   "nginx": {
     "sites_enabled_dir": "/tmp/sites-enabled",
     "backup_dir": "/tmp/backups",
@@ -61,7 +65,7 @@ func TestInitCfgLoadsJSONCConfig(t *testing.T) {
 	if cfg.TokenTTL != 2*time.Hour {
 		t.Fatalf("unexpected token ttl: %v", cfg.TokenTTL)
 	}
-	if cfg.BootstrapAdminUsername != "root" || cfg.BootstrapAdminPassword != "secret" {
+	if cfg.BootstrapAdminUsername != "root" || cfg.BootstrapAdminPasswordHash != testBootstrapAdminHash {
 		t.Fatalf("unexpected bootstrap config")
 	}
 	if cfg.NginxSitesEnabledDir != "/tmp/sites-enabled" || cfg.NginxBackupDir != "/tmp/backups" {
@@ -87,6 +91,7 @@ func TestEnvOverridesConfigFile(t *testing.T) {
 	t.Setenv("PANEL_CONFIG", configPath)
 	t.Setenv("PANEL_LISTEN_ADDR", "127.0.0.1:10002")
 	t.Setenv("PANEL_TOKEN_TTL_HOURS", "1")
+	t.Setenv("PANEL_BOOTSTRAP_ADMIN_PASSWORD_HASH", testBootstrapAdminHash)
 
 	if err := InitCfg(); err != nil {
 		t.Fatalf("init config: %v", err)
@@ -96,6 +101,9 @@ func TestEnvOverridesConfigFile(t *testing.T) {
 	}
 	if cfg.TokenTTL != time.Hour {
 		t.Fatalf("expected env token ttl override, got %v", cfg.TokenTTL)
+	}
+	if cfg.BootstrapAdminPasswordHash != testBootstrapAdminHash {
+		t.Fatalf("expected env bootstrap password hash override, got %q", cfg.BootstrapAdminPasswordHash)
 	}
 }
 
@@ -147,20 +155,76 @@ func TestDecodeJSONCRejectsMultipleValues(t *testing.T) {
 	}
 }
 
-func TestEmptyPasswordEnvDoesNotOverrideConfig(t *testing.T) {
+func TestEmptyPasswordHashEnvDoesNotOverrideConfig(t *testing.T) {
+	clearPanelEnv(t)
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(configPath, []byte(`{"bootstrap_admin_password_hash":"`+testBootstrapAdminHash+`"}`), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	t.Setenv("PANEL_CONFIG", configPath)
+	t.Setenv("PANEL_BOOTSTRAP_ADMIN_PASSWORD_HASH", "")
+
+	if err := InitCfg(); err != nil {
+		t.Fatalf("init config: %v", err)
+	}
+	if cfg.BootstrapAdminPasswordHash != testBootstrapAdminHash {
+		t.Fatalf("expected blank password hash env to be ignored, got %q", cfg.BootstrapAdminPasswordHash)
+	}
+}
+
+func TestInitCfgRejectsLegacyBootstrapPasswordFile(t *testing.T) {
 	clearPanelEnv(t)
 	configPath := filepath.Join(t.TempDir(), "config.json")
 	if err := os.WriteFile(configPath, []byte(`{"bootstrap_admin_password":"secret"}`), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 	t.Setenv("PANEL_CONFIG", configPath)
-	t.Setenv("PANEL_BOOTSTRAP_ADMIN_PASSWORD", "")
+
+	err := InitCfg()
+	if err == nil || !strings.Contains(err.Error(), "bootstrap_admin_password is no longer supported") {
+		t.Fatalf("expected legacy bootstrap password error, got %v", err)
+	}
+}
+
+func TestEmptyLegacyBootstrapPasswordFileIsIgnored(t *testing.T) {
+	clearPanelEnv(t)
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(configPath, []byte(`{"bootstrap_admin_password":""}`), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	t.Setenv("PANEL_CONFIG", configPath)
 
 	if err := InitCfg(); err != nil {
-		t.Fatalf("init config: %v", err)
+		t.Fatalf("expected empty legacy bootstrap password to be ignored, got %v", err)
 	}
-	if cfg.BootstrapAdminPassword != "secret" {
-		t.Fatalf("expected blank password env to be ignored, got %q", cfg.BootstrapAdminPassword)
+}
+
+func TestInitCfgRejectsLegacyBootstrapPasswordEnv(t *testing.T) {
+	clearPanelEnv(t)
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(configPath, []byte(`{}`), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	t.Setenv("PANEL_CONFIG", configPath)
+	t.Setenv("PANEL_BOOTSTRAP_ADMIN_PASSWORD", "secret")
+
+	err := InitCfg()
+	if err == nil || !strings.Contains(err.Error(), "PANEL_BOOTSTRAP_ADMIN_PASSWORD is no longer supported") {
+		t.Fatalf("expected legacy bootstrap password env error, got %v", err)
+	}
+}
+
+func TestInitCfgRejectsInvalidBootstrapPasswordHash(t *testing.T) {
+	clearPanelEnv(t)
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(configPath, []byte(`{"bootstrap_admin_password_hash":"not-a-bcrypt-hash"}`), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	t.Setenv("PANEL_CONFIG", configPath)
+
+	err := InitCfg()
+	if err == nil || !strings.Contains(err.Error(), "bootstrap_admin_password_hash") {
+		t.Fatalf("expected invalid bootstrap password hash error, got %v", err)
 	}
 }
 
@@ -180,6 +244,23 @@ func TestConfigExampleParses(t *testing.T) {
 	}
 }
 
+func TestDockerConfigBootstrapHashMatchesDevPassword(t *testing.T) {
+	raw, err := os.ReadFile("../deploy/docker/config.json")
+	if err != nil {
+		t.Fatalf("read docker config: %v", err)
+	}
+	var fc fileConfig
+	if err := decodeJSONC(raw, &fc); err != nil {
+		t.Fatalf("decode docker config: %v", err)
+	}
+	if fc.BootstrapAdminPasswordHash == nil || *fc.BootstrapAdminPasswordHash == "" {
+		t.Fatal("docker config does not contain a dev bootstrap password hash")
+	}
+	if !passwordx.Compare(*fc.BootstrapAdminPasswordHash, "admin123456") {
+		t.Fatal("docker config bootstrap hash does not match documented dev password")
+	}
+}
+
 func clearPanelEnv(t *testing.T) {
 	t.Helper()
 	for _, key := range []string{
@@ -192,6 +273,7 @@ func clearPanelEnv(t *testing.T) {
 		"PANEL_TOKEN_TTL_HOURS",
 		"PANEL_BOOTSTRAP_ADMIN_USERNAME",
 		"PANEL_BOOTSTRAP_ADMIN_PASSWORD",
+		"PANEL_BOOTSTRAP_ADMIN_PASSWORD_HASH",
 		"PANEL_NGINX_SITES_ENABLED_DIR",
 		"PANEL_NGINX_BACKUP_DIR",
 		"PANEL_NGINX_SERVICE_NAME",

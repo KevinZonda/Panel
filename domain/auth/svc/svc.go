@@ -27,7 +27,7 @@ func NewService(db *gorm.DB, tokenTTL time.Duration) *Service {
 	return &Service{db: db, tokenTTL: tokenTTL}
 }
 
-func (s *Service) EnsureBootstrapAdmin(username, password string) error {
+func (s *Service) EnsureBootstrapAdmin(username, passwordHash string) error {
 	count, err := userdao.CountUsers(s.db)
 	if err != nil {
 		return err
@@ -38,17 +38,12 @@ func (s *Service) EnsureBootstrapAdmin(username, password string) error {
 	if !validatex.ValidUsername(username) {
 		return apperr.Validationf("bootstrap admin username is invalid")
 	}
-	if len(password) < 8 {
-		return fmt.Errorf("PANEL_BOOTSTRAP_ADMIN_PASSWORD must be at least 8 characters when creating the first user")
-	}
-
-	hash, err := passwordx.Hash(password)
-	if err != nil {
-		return err
+	if err := passwordx.ValidateHash(passwordHash); err != nil {
+		return fmt.Errorf("invalid bootstrap_admin_password_hash: %w", err)
 	}
 	user := &dbmod.User{
 		Username:     username,
-		PasswordHash: hash,
+		PasswordHash: passwordHash,
 		Role:         models.RoleAdmin,
 		Status:       models.UserStatusActive,
 	}

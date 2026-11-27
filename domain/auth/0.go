@@ -10,10 +10,10 @@ import (
 )
 
 type Params struct {
-	DB                     *gorm.DB
-	TokenTTL               time.Duration
-	BootstrapAdminUsername string
-	BootstrapAdminPassword string
+	DB                         *gorm.DB
+	TokenTTL                   time.Duration
+	BootstrapAdminUsername     string
+	BootstrapAdminPasswordHash string
 }
 
 type Domain struct {
@@ -24,7 +24,7 @@ type Domain struct {
 
 func New(params Params) (*Domain, error) {
 	service := svc.NewService(params.DB, params.TokenTTL)
-	if err := service.EnsureBootstrapAdmin(params.BootstrapAdminUsername, params.BootstrapAdminPassword); err != nil {
+	if err := service.EnsureBootstrapAdmin(params.BootstrapAdminUsername, params.BootstrapAdminPasswordHash); err != nil {
 		return nil, err
 	}
 	return &Domain{

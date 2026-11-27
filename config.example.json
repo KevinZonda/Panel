@@ -8,9 +8,11 @@
   "trusted_proxies": [],
   "token_ttl_hours": 24,
 
-  // Required only when creating the first admin user.
+  // Required only when creating the first admin user. Must be a bcrypt hash
+  // with cost >= 10. Generate interactively with `htpasswd -nBC 10 admin`
+  // and copy the part after "admin:".
   "bootstrap_admin_username": "admin",
-  "bootstrap_admin_password": "",
+  "bootstrap_admin_password_hash": "",
 
   "cert": {
     // Public (CA-signed) certificates: {public_dir}/{domain}/priv and pub.

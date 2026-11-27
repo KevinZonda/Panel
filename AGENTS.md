@@ -11,7 +11,7 @@
 
 - `docker compose up --build` 启动完整开发环境：单容器内含 panel + nginx
 - panel UI/API 在 `localhost:8080`，nginx demo 站点在 `localhost:8081`
-- 默认 dev 账号 `admin` / `admin123456`（可用 `PANEL_ADMIN_PASSWORD` 覆盖，仅限本地）
+- 默认 dev 账号 `admin` / `admin123456`（可用 `PANEL_BOOTSTRAP_ADMIN_PASSWORD_HASH` 覆盖，仅限本地；可用 `htpasswd -nBC 10 admin` 生成 hash）
 - 容器内无 systemd，nginx 使用 `control_mode: binary`（`nginx -s` 信号控制）
 - 本机 macOS 拉取镜像如遇到 `auth.docker.io` 网络问题，可用镜像源拉取后 `docker tag` 成标准名称
 

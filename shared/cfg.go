@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/KevinZonda/Panel/lib/passwordx"
 	"github.com/KevinZonda/Panel/models"
 	"github.com/joho/godotenv"
 	"github.com/tailscale/hujson"
@@ -18,17 +19,18 @@ import (
 const DefaultConfigPath = "/etc/kvzd-panel/config.json"
 
 type fileConfig struct {
-	ListenAddr             *string          `json:"listen_addr"`
-	DatabaseDSN            *string          `json:"database_dsn"`
-	GinMode                *string          `json:"gin_mode"`
-	CorsAllowedOrigins     []string         `json:"cors_allowed_origins"`
-	TrustedProxies         []string         `json:"trusted_proxies"`
-	TokenTTLHours          *int             `json:"token_ttl_hours"`
-	BootstrapAdminUsername *string          `json:"bootstrap_admin_username"`
-	BootstrapAdminPassword *string          `json:"bootstrap_admin_password"`
-	Nginx                  *fileNginxConfig `json:"nginx"`
-	Frp                    *fileFrpConfig   `json:"frp"`
-	Cert                   *fileCertConfig  `json:"cert"`
+	ListenAddr                   *string          `json:"listen_addr"`
+	DatabaseDSN                  *string          `json:"database_dsn"`
+	GinMode                      *string          `json:"gin_mode"`
+	CorsAllowedOrigins           []string         `json:"cors_allowed_origins"`
+	TrustedProxies               []string         `json:"trusted_proxies"`
+	TokenTTLHours                *int             `json:"token_ttl_hours"`
+	BootstrapAdminUsername       *string          `json:"bootstrap_admin_username"`
+	LegacyBootstrapAdminPassword *string          `json:"bootstrap_admin_password"`
+	BootstrapAdminPasswordHash   *string          `json:"bootstrap_admin_password_hash"`
+	Nginx                        *fileNginxConfig `json:"nginx"`
+	Frp                          *fileFrpConfig   `json:"frp"`
+	Cert                         *fileCertConfig  `json:"cert"`
 }
 
 type fileFrpConfig struct {
@@ -70,25 +72,25 @@ func InitCfg() error {
 
 func defaultConfig() *models.Config {
 	return &models.Config{
-		ListenAddr:             ":8080",
-		DatabaseDSN:            "file:/var/lib/kvzd-panel/data.db?_foreign_keys=on",
-		GinMode:                "release",
-		CorsAllowedOrigins:     []string{"*"},
-		TrustedProxies:         nil,
-		TokenTTL:               24 * time.Hour,
-		NginxSitesEnabledDir:   "/etc/nginx/sites-enabled",
-		NginxBackupDir:         "/var/lib/kvzd-panel/nginx-backups",
-		NginxServiceName:       "nginx",
-		NginxControlMode:       models.NginxControlModeSystemd,
-		FrpsConfigDir:          "/etc/frps",
-		FrpcConfigDir:          "/etc/frp",
-		FrpBackupDir:           "/var/lib/kvzd-panel/frp-backups",
-		FrpCommandTimeout:      10 * time.Second,
-		CertPublicDir:          "/var/cert",
-		CertSelfSignDir:        "/var/cert-self-sign",
-		NginxCommandTimeout:    10 * time.Second,
-		BootstrapAdminUsername: "admin",
-		BootstrapAdminPassword: "",
+		ListenAddr:                 ":8080",
+		DatabaseDSN:                "file:/var/lib/kvzd-panel/data.db?_foreign_keys=on",
+		GinMode:                    "release",
+		CorsAllowedOrigins:         []string{"*"},
+		TrustedProxies:             nil,
+		TokenTTL:                   24 * time.Hour,
+		NginxSitesEnabledDir:       "/etc/nginx/sites-enabled",
+		NginxBackupDir:             "/var/lib/kvzd-panel/nginx-backups",
+		NginxServiceName:           "nginx",
+		NginxControlMode:           models.NginxControlModeSystemd,
+		FrpsConfigDir:              "/etc/frps",
+		FrpcConfigDir:              "/etc/frp",
+		FrpBackupDir:               "/var/lib/kvzd-panel/frp-backups",
+		FrpCommandTimeout:          10 * time.Second,
+		CertPublicDir:              "/var/cert",
+		CertSelfSignDir:            "/var/cert-self-sign",
+		NginxCommandTimeout:        10 * time.Second,
+		BootstrapAdminUsername:     "admin",
+		BootstrapAdminPasswordHash: "",
 	}
 }
 
@@ -110,6 +112,9 @@ func applyConfigFile(cfg *models.Config) error {
 	var fc fileConfig
 	if err := decodeJSONC(raw, &fc); err != nil {
 		return fmt.Errorf("parse config %q: %w", path, err)
+	}
+	if fc.LegacyBootstrapAdminPassword != nil && strings.TrimSpace(*fc.LegacyBootstrapAdminPassword) != "" {
+		return fmt.Errorf("bootstrap_admin_password is no longer supported; use bootstrap_admin_password_hash")
 	}
 	applyFileConfig(cfg, &fc)
 	return nil
@@ -157,8 +162,8 @@ func applyFileConfig(cfg *models.Config, fc *fileConfig) {
 	if fc.BootstrapAdminUsername != nil {
 		cfg.BootstrapAdminUsername = strings.TrimSpace(*fc.BootstrapAdminUsername)
 	}
-	if fc.BootstrapAdminPassword != nil {
-		cfg.BootstrapAdminPassword = *fc.BootstrapAdminPassword
+	if fc.BootstrapAdminPasswordHash != nil {
+		cfg.BootstrapAdminPasswordHash = strings.TrimSpace(*fc.BootstrapAdminPasswordHash)
 	}
 	if fc.Cert != nil {
 		if fc.Cert.PublicDir != nil {
@@ -225,8 +230,11 @@ func applyEnvOverrides(cfg *models.Config) error {
 	if v, ok := envString("PANEL_BOOTSTRAP_ADMIN_USERNAME"); ok {
 		cfg.BootstrapAdminUsername = v
 	}
-	if v, ok := envString("PANEL_BOOTSTRAP_ADMIN_PASSWORD"); ok {
-		cfg.BootstrapAdminPassword = v
+	if strings.TrimSpace(os.Getenv("PANEL_BOOTSTRAP_ADMIN_PASSWORD")) != "" {
+		return fmt.Errorf("PANEL_BOOTSTRAP_ADMIN_PASSWORD is no longer supported; use PANEL_BOOTSTRAP_ADMIN_PASSWORD_HASH")
+	}
+	if v, ok := envString("PANEL_BOOTSTRAP_ADMIN_PASSWORD_HASH"); ok {
+		cfg.BootstrapAdminPasswordHash = v
 	}
 	if v, ok := envString("PANEL_NGINX_SITES_ENABLED_DIR"); ok {
 		cfg.NginxSitesEnabledDir = v
@@ -317,6 +325,11 @@ func validateConfig(cfg *models.Config) error {
 	}
 	if cfg.CertSelfSignDir == "" {
 		return fmt.Errorf("cert.selfsign_dir must not be empty")
+	}
+	if cfg.BootstrapAdminPasswordHash != "" {
+		if err := passwordx.ValidateHash(cfg.BootstrapAdminPasswordHash); err != nil {
+			return fmt.Errorf("bootstrap_admin_password_hash: %w", err)
+		}
 	}
 	return nil
 }
