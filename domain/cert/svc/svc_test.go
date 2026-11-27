@@ -147,19 +147,23 @@ func TestGenerateSelfSignRejectsBadInput(t *testing.T) {
 }
 
 func TestListAndGet(t *testing.T) {
-	service, publicDir, _ := setup(t)
+	service, _, selfSignDir := setup(t)
 
 	if _, err := service.GenerateSelfSign("self.example.com", []string{"self.example.com"}, 30, svc.SelfSignSubject{}); err != nil {
 		t.Fatalf("generate: %v", err)
 	}
 
-	// upload a public cert: reuse generated files as content
-	caRaw, err := os.ReadFile(filepath.Join(publicDir, "..", "cert-self-sign", "self.example.com", "ca.crt"))
+	// add a public cert through the create path: reuse generated files as content
+	certRaw, err := os.ReadFile(filepath.Join(selfSignDir, "self.example.com", "server.crt"))
 	if err != nil {
-		t.Fatalf("read generated ca: %v", err)
+		t.Fatalf("read generated cert: %v", err)
 	}
-	if err := service.UploadFile(apimod.CertTypePublic, "pub.example.com", "pub", string(caRaw)); err != nil {
-		t.Fatalf("upload pub: %v", err)
+	keyRaw, err := os.ReadFile(filepath.Join(selfSignDir, "self.example.com", "server.key"))
+	if err != nil {
+		t.Fatalf("read generated key: %v", err)
+	}
+	if _, err := service.CreatePublicCert("pub.example.com", string(certRaw), string(keyRaw)); err != nil {
+		t.Fatalf("create public cert: %v", err)
 	}
 
 	list, err := service.List()
@@ -436,5 +440,24 @@ func TestCreatePublicCertChainValidation(t *testing.T) {
 	// leaf-only still fine
 	if _, err := service.CreatePublicCert("leaf-only.com", leaf, key); err != nil {
 		t.Fatalf("leaf-only upload should be accepted: %v", err)
+	}
+}
+
+func TestUploadFileRequiresExistingCert(t *testing.T) {
+	service, publicDir, selfSignDir := setup(t)
+
+	if _, err := service.GenerateSelfSign("donor.com", []string{"donor.com"}, 30, svc.SelfSignSubject{}); err != nil {
+		t.Fatalf("generate donor: %v", err)
+	}
+	cert, err := os.ReadFile(filepath.Join(selfSignDir, "donor.com", "server.crt"))
+	if err != nil {
+		t.Fatalf("read donor cert: %v", err)
+	}
+
+	if err := service.UploadFile(apimod.CertTypePublic, "missing.com", "pub", string(cert)); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected not found replacing a file on a missing cert, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(publicDir, "missing.com")); !os.IsNotExist(err) {
+		t.Fatal("missing.com directory must not be created by replace")
 	}
 }

@@ -19,6 +19,10 @@ type Config struct {
 	NginxServiceName       string
 	NginxControlMode       string
 	NginxCommandTimeout    time.Duration
+	FrpsConfigDir          string
+	FrpcConfigDir          string
+	FrpBackupDir           string
+	FrpCommandTimeout      time.Duration
 	CertPublicDir          string
 	CertSelfSignDir        string
 	BootstrapAdminUsername string

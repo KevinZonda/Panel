@@ -17,6 +17,27 @@ func (w *Web) nginxPage(c *gin.Context) {
 	w.render(c, http.StatusOK, "nginx.html", data)
 }
 
+func (w *Web) nginxTestConfig(c *gin.Context) {
+	result := w.nginxSvc.TestConfig(c.Request.Context())
+	if result.OK {
+		redirectMsg(c, "/ui/nginx", "config test passed")
+	} else {
+		redirectMsg(c, "/ui/nginx", "config test failed, see output below")
+	}
+}
+
+func (w *Web) nginxActionConfirmPage(c *gin.Context) {
+	action := c.Param("action")
+	if action != "start" && action != "stop" && action != "restart" {
+		w.renderError(c, http.StatusNotFound, "unknown action")
+		return
+	}
+	w.render(c, http.StatusOK, "nginx_action_confirm.html", gin.H{
+		"Title":  "Confirm nginx " + action,
+		"Action": action,
+	})
+}
+
 func (w *Web) nginxAction(c *gin.Context) {
 	action := c.PostForm("action")
 	resp, err := w.nginxSvc.Action(c.Request.Context(), action)

@@ -22,7 +22,7 @@
 {{else if .Nginx}}
 <table border="1">
 <tr><th>Installed</th><td>{{.Nginx.Installed}}</td></tr>
-<tr><th>Running</th><td>{{.Nginx.Running}}</td></tr>
+<tr><th>Running</th><td>{{yesNo .Nginx.Running}}</td></tr>
 <tr><th>Version</th><td>{{derefStr .Nginx.Version}}</td></tr>
 <tr><th>Config test</th><td>{{if .Nginx.ConfigTest.OK}}ok{{else}}failed{{end}}</td></tr>
 </table>

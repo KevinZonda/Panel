@@ -260,6 +260,9 @@ func (s *Service) UploadFile(certType, name, file, content string) error {
 	}
 
 	root, _ := s.rootFor(certType)
+	if !dao.DomainExists(root, name) {
+		return apperr.NotFoundf("cert not found")
+	}
 	perm := os.FileMode(0o644)
 	if privateFiles(certType)[file] {
 		perm = 0o600

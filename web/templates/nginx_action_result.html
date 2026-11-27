@@ -6,7 +6,7 @@
 <tr><th>Result</th><td>{{if .Result.OK}}ok{{else}}failed{{end}}</td></tr>
 <tr><th>Exit code</th><td>{{.Result.ExitCode}}</td></tr>
 <tr><th>Duration</th><td>{{.Result.DurationMS}} ms</td></tr>
-<tr><th>Running now</th><td>{{.Result.Status.Running}}</td></tr>
+<tr><th>Running now</th><td>{{yesNo .Result.Status.Running}}</td></tr>
 </table>
 {{if .Result.Output}}<pre>{{.Result.Output}}</pre>{{end}}
 {{end}}

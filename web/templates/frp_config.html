@@ -1,0 +1,39 @@
+{{template "head" .}}
+
+<p><a href="/ui/frp">&larr; Back to frpc/frps management</a></p>
+
+{{if .Config}}
+<h2>Details</h2>
+<table border="1">
+<tr><th>Type</th><td>{{.Config.Type}}</td></tr>
+<tr><th>Name</th><td>{{.Config.Name}}</td></tr>
+<tr><th>Service</th><td>{{.Config.ServiceName}}</td></tr>
+<tr><th>Size</th><td>{{.Config.SizeBytes}} B</td></tr>
+<tr><th>Modified</th><td>{{fmtTime .Config.ModifiedAt}}</td></tr>
+<tr><th>SHA256</th><td><code>{{.Config.SHA256}}</code></td></tr>
+</table>
+
+{{if eq .User.Role "admin"}}
+<h2>Edit</h2>
+<form method="post" action="/ui/frp/configs/{{.Config.Type}}/{{.Config.Name}}">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+<input type="hidden" name="expected_sha256" value="{{.Config.SHA256}}">
+<p>
+<label for="content">Content</label><br>
+<textarea id="content" name="content" rows="24" cols="100">{{.Content}}</textarea>
+</p>
+<p>
+<label><input type="checkbox" name="validate" value="on" checked> validate with {{.Config.Type}} verify (rollback on failure)</label>
+</p>
+<p><button type="submit">Save</button></p>
+</form>
+
+<h2>Delete</h2>
+<p><a href="/ui/frp/configs/{{.Config.Type}}/{{.Config.Name}}/delete">Delete this config</a></p>
+{{else}}
+<h2>Content</h2>
+<pre>{{.Content}}</pre>
+{{end}}
+{{end}}
+
+{{template "foot" .}}

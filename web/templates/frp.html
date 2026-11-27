@@ -1,0 +1,83 @@
+{{template "head" .}}
+
+<h2>systemd services</h2>
+{{if .ServiceError}}
+<p><strong>Error: {{.ServiceError}}</strong></p>
+{{else if .Services}}
+<table border="1">
+<tr><th>Name</th><th>Type</th><th>Active</th><th>Sub state</th><th>PID</th><th>Unit file</th><th>Config</th><th>Description</th>{{if eq .User.Role "admin"}}<th>Actions</th>{{end}}</tr>
+{{range .Services}}
+<tr>
+<td>{{.Name}}</td>
+<td>{{.Type}}</td>
+<td>{{.ActiveState}}</td>
+<td>{{.SubState}}</td>
+<td>{{derefInt .MainPID}}</td>
+<td>{{.UnitFileState}}</td>
+<td>{{if .ConfigName}}<a href="/ui/frp/configs/{{.ConfigType}}/{{.ConfigName}}">{{.ConfigName}}</a>{{else}}-{{end}}</td>
+<td>{{.Description}}</td>
+{{if eq $.User.Role "admin"}}
+<td>
+<a href="/ui/frp/services/{{.Name}}/actions/start">start</a> |
+<a href="/ui/frp/services/{{.Name}}/actions/stop">stop</a> |
+<a href="/ui/frp/services/{{.Name}}/actions/restart">restart</a>
+</td>
+{{end}}
+</tr>
+{{end}}
+</table>
+{{else}}
+<p>No frp systemd services found.</p>
+{{end}}
+
+<h2>Config files</h2>
+{{if ne .User.Role "admin"}}
+<p>admin only; frp configs can contain authentication tokens and other secrets.</p>
+{{else}}
+{{if .ConfigError}}
+<p><strong>Error: {{.ConfigError}}</strong></p>
+{{else if .Configs}}
+<table border="1">
+<tr><th>Type</th><th>Name</th><th>Service</th><th>Size</th><th>Modified</th><th>SHA256</th></tr>
+{{range .Configs}}
+<tr>
+<td>{{.Type}}</td>
+<td><a href="/ui/frp/configs/{{.Type}}/{{.Name}}">{{.Name}}</a></td>
+<td>{{.ServiceName}}</td>
+<td>{{.SizeBytes}} B</td>
+<td>{{fmtTime .ModifiedAt}}</td>
+<td><code>{{shortSHA .SHA256}}</code></td>
+</tr>
+{{end}}
+</table>
+{{else}}
+<p>No frp config files found.</p>
+{{end}}
+
+<h2>Create config</h2>
+<form method="post" action="/ui/frp/configs">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+<p>
+<label for="type">Type</label><br>
+<select id="type" name="type">
+<option value="frps"{{if ne .FormType "frpc"}} selected{{end}}>frps (/etc/frps)</option>
+<option value="frpc"{{if eq .FormType "frpc"}} selected{{end}}>frpc (/etc/frp)</option>
+</select>
+</p>
+<p>
+<label for="name">File name</label><br>
+<input type="text" id="name" name="name" required pattern="[A-Za-z0-9._-]{1,128}" placeholder="frps-example.toml" value="{{.FormName}}"><br>
+<small>TOML only. Normally the basename matches the systemd unit: frps-example.toml → frps-example.service.</small>
+</p>
+<p>
+<label for="content">Content</label><br>
+<textarea id="content" name="content" rows="16" cols="80">{{.FormContent}}</textarea>
+</p>
+<p>
+<label><input type="checkbox" name="validate" value="on" checked> validate with frps/frpc verify (rollback on failure)</label>
+</p>
+<p><button type="submit">Create</button></p>
+</form>
+{{end}}
+
+{{template "foot" .}}

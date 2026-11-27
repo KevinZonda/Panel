@@ -1,0 +1,19 @@
+{{template "head" .}}
+
+{{if .Result}}
+<h2>Result</h2>
+<table border="1">
+<tr><th>Service</th><td>{{.Result.Service}}</td></tr>
+<tr><th>Action</th><td>{{.Result.Action}}</td></tr>
+<tr><th>Result</th><td>{{if .Result.OK}}ok{{else}}failed{{end}}</td></tr>
+<tr><th>Exit code</th><td>{{.Result.ExitCode}}</td></tr>
+<tr><th>Duration</th><td>{{.Result.DurationMS}} ms</td></tr>
+<tr><th>Active state</th><td>{{.Result.Status.ActiveState}}</td></tr>
+<tr><th>Sub state</th><td>{{.Result.Status.SubState}}</td></tr>
+<tr><th>PID</th><td>{{derefInt .Result.Status.MainPID}}</td></tr>
+</table>
+{{if .Result.Output}}<pre>{{.Result.Output}}</pre>{{end}}
+{{end}}
+
+<p><a href="/ui/frp">Back to frpc/frps management</a></p>
+{{template "foot" .}}

@@ -1,0 +1,20 @@
+{{template "head" .}}
+
+<p>Are you sure you want to <strong>{{.Action}}</strong> nginx?</p>
+{{if eq .Action "stop"}}
+<p><font color="red">Warning: all sites served by nginx will become unreachable until it is started again.</font></p>
+{{end}}
+{{if eq .Action "restart"}}
+<p><font color="red">Warning: there will be a brief downtime while nginx restarts.</font></p>
+{{end}}
+{{if eq .Action "start"}}
+<p>If the configuration is invalid nginx will fail to start.</p>
+{{end}}
+<form method="post" action="/ui/nginx/actions">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+<input type="hidden" name="action" value="{{.Action}}">
+<button type="submit">Yes, {{.Action}}</button>
+</form>
+<p><a href="/ui/nginx">Cancel</a></p>
+
+{{template "foot" .}}

@@ -6,6 +6,7 @@ import (
 
 	authsvc "github.com/KevinZonda/Panel/domain/auth/svc"
 	certsvc "github.com/KevinZonda/Panel/domain/cert/svc"
+	frpsvc "github.com/KevinZonda/Panel/domain/frp/svc"
 	nginxsvc "github.com/KevinZonda/Panel/domain/nginx/svc"
 	systemsvc "github.com/KevinZonda/Panel/domain/system/svc"
 	usersvc "github.com/KevinZonda/Panel/domain/user/svc"
@@ -21,6 +22,7 @@ type Web struct {
 	systemSvc *systemsvc.Service
 	nginxSvc  *nginxsvc.Service
 	certSvc   *certsvc.Service
+	frpSvc    *frpsvc.Service
 }
 
 func New(
@@ -29,6 +31,7 @@ func New(
 	systemSvc *systemsvc.Service,
 	nginxSvc *nginxsvc.Service,
 	certSvc *certsvc.Service,
+	frpSvc *frpsvc.Service,
 ) *Web {
 	return &Web{
 		authSvc:   authSvc,
@@ -36,6 +39,7 @@ func New(
 		systemSvc: systemSvc,
 		nginxSvc:  nginxSvc,
 		certSvc:   certSvc,
+		frpSvc:    frpSvc,
 	}
 }
 
@@ -79,7 +83,9 @@ func (w *Web) InitRoutes(engine *gin.Engine) error {
 	ui.GET("/system", authn, w.systemPage)
 
 	ui.GET("/nginx", authn, w.nginxPage)
+	ui.GET("/nginx/actions/:action", authn, admin, w.nginxActionConfirmPage)
 	ui.POST("/nginx/actions", authn, admin, w.nginxAction)
+	ui.POST("/nginx/test", authn, w.nginxTestConfig)
 
 	ui.GET("/nginx/sites", authn, w.siteListPage)
 	ui.POST("/nginx/sites", authn, admin, w.createSite)
@@ -87,6 +93,15 @@ func (w *Web) InitRoutes(engine *gin.Engine) error {
 	ui.POST("/nginx/sites/:name", authn, admin, w.updateSite)
 	ui.GET("/nginx/sites/:name/delete", authn, admin, w.deleteSitePage)
 	ui.POST("/nginx/sites/:name/delete", authn, admin, w.deleteSite)
+
+	ui.GET("/frp", authn, w.frpPage)
+	ui.POST("/frp/configs", authn, admin, w.createFrpConfig)
+	ui.GET("/frp/configs/:type/:name", authn, admin, w.frpConfigPage)
+	ui.POST("/frp/configs/:type/:name", authn, admin, w.updateFrpConfig)
+	ui.GET("/frp/configs/:type/:name/delete", authn, admin, w.deleteFrpConfigPage)
+	ui.POST("/frp/configs/:type/:name/delete", authn, admin, w.deleteFrpConfig)
+	ui.GET("/frp/services/:name/actions/:action", authn, admin, w.frpServiceActionConfirmPage)
+	ui.POST("/frp/services/:name/actions", authn, admin, w.frpServiceAction)
 
 	ui.GET("/certs", authn, w.certListPage)
 	ui.GET("/certs/public", authn, admin, w.uploadPublicPage)

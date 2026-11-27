@@ -27,6 +27,12 @@ func TestInitCfgLoadsJSONCConfig(t *testing.T) {
     "service_name": "nginx-test",
     "command_timeout_seconds": 3,
   },
+  "frp": {
+    "frps_config_dir": "/tmp/frps",
+    "frpc_config_dir": "/tmp/frp",
+    "backup_dir": "/tmp/frp-backups",
+    "command_timeout_seconds": 4,
+  },
 }
 `
 	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
@@ -63,6 +69,12 @@ func TestInitCfgLoadsJSONCConfig(t *testing.T) {
 	}
 	if cfg.NginxServiceName != "nginx-test" || cfg.NginxCommandTimeout != 3*time.Second {
 		t.Fatalf("unexpected nginx service config")
+	}
+	if cfg.FrpsConfigDir != "/tmp/frps" || cfg.FrpcConfigDir != "/tmp/frp" || cfg.FrpBackupDir != "/tmp/frp-backups" {
+		t.Fatalf("unexpected frp paths: %q %q %q", cfg.FrpsConfigDir, cfg.FrpcConfigDir, cfg.FrpBackupDir)
+	}
+	if cfg.FrpCommandTimeout != 4*time.Second {
+		t.Fatalf("unexpected frp command timeout: %v", cfg.FrpCommandTimeout)
 	}
 }
 
@@ -187,6 +199,10 @@ func clearPanelEnv(t *testing.T) {
 		"PANEL_CERT_PUBLIC_DIR",
 		"PANEL_CERT_SELFSIGN_DIR",
 		"PANEL_NGINX_COMMAND_TIMEOUT_SECONDS",
+		"PANEL_FRP_FRPS_CONFIG_DIR",
+		"PANEL_FRP_FRPC_CONFIG_DIR",
+		"PANEL_FRP_BACKUP_DIR",
+		"PANEL_FRP_COMMAND_TIMEOUT_SECONDS",
 	} {
 		t.Setenv(key, "")
 	}

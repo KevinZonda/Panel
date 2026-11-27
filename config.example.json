@@ -19,6 +19,15 @@
     "selfsign_dir": "/var/cert-self-sign",
   },
 
+  "frp": {
+    // frps TOML configs live here; names normally match frps*.service units.
+    "frps_config_dir": "/etc/frps",
+    // frpc TOML configs live here; names normally match frpc*.service units.
+    "frpc_config_dir": "/etc/frp",
+    "backup_dir": "/var/lib/kvzd-panel/frp-backups",
+    "command_timeout_seconds": 10,
+  },
+
   "nginx": {
     "sites_enabled_dir": "/etc/nginx/sites-enabled",
     "backup_dir": "/var/lib/kvzd-panel/nginx-backups",

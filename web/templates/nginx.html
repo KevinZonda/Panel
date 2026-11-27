@@ -3,8 +3,8 @@
 {{if .Nginx}}
 <h2>Status</h2>
 <table border="1">
-<tr><th>Installed</th><td>{{.Nginx.Installed}}</td></tr>
-<tr><th>Running</th><td>{{.Nginx.Running}}</td></tr>
+<tr><th>Installed</th><td>{{yesNo .Nginx.Installed}}</td></tr>
+<tr><th>Running</th><td>{{yesNo .Nginx.Running}}</td></tr>
 <tr><th>PID</th><td>{{derefInt .Nginx.PID}}</td></tr>
 <tr><th>Version</th><td>{{derefStr .Nginx.Version}}</td></tr>
 <tr><th>Service manager</th><td>{{.Nginx.Service.Manager}}</td></tr>
@@ -14,20 +14,31 @@
 
 <h2>Config test</h2>
 <table border="1">
-<tr><th>Result</th><td>{{if .Nginx.ConfigTest.OK}}ok{{else}}failed{{end}}</td></tr>
+<tr><th>Result</th><td>{{if .Nginx.ConfigTest.OK}}<font color="green">ok</font>{{else}}<font color="red">failed</font>{{end}}</td></tr>
 <tr><th>Exit code</th><td>{{.Nginx.ConfigTest.ExitCode}}</td></tr>
 </table>
 {{if .Nginx.ConfigTest.Output}}<pre>{{.Nginx.ConfigTest.Output}}</pre>{{end}}
+<form method="post" action="/ui/nginx/test">
+<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+<button type="submit">Run nginx -t</button>
+</form>
 
 {{if eq .User.Role "admin"}}
 <h2>Actions</h2>
+<table>
+<tr>
+<td><form method="get" action="/ui/nginx/actions/start"><button type="submit">Start</button></form></td>
+<td><form method="get" action="/ui/nginx/actions/stop"><button type="submit">Stop</button></form></td>
+<td>
 <form method="post" action="/ui/nginx/actions">
 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-<button type="submit" name="action" value="start">Start</button>
-<button type="submit" name="action" value="stop">Stop</button>
 <button type="submit" name="action" value="reload">Reload</button>
-<button type="submit" name="action" value="restart">Restart</button>
 </form>
+</td>
+<td><form method="get" action="/ui/nginx/actions/restart"><button type="submit">Restart</button></form></td>
+</tr>
+</table>
+<p><small>start, stop and restart ask for confirmation; reload is graceful and applies immediately</small></p>
 {{end}}
 {{end}}
 

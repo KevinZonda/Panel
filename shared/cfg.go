@@ -27,7 +27,15 @@ type fileConfig struct {
 	BootstrapAdminUsername *string          `json:"bootstrap_admin_username"`
 	BootstrapAdminPassword *string          `json:"bootstrap_admin_password"`
 	Nginx                  *fileNginxConfig `json:"nginx"`
+	Frp                    *fileFrpConfig   `json:"frp"`
 	Cert                   *fileCertConfig  `json:"cert"`
+}
+
+type fileFrpConfig struct {
+	FrpsConfigDir         *string `json:"frps_config_dir"`
+	FrpcConfigDir         *string `json:"frpc_config_dir"`
+	BackupDir             *string `json:"backup_dir"`
+	CommandTimeoutSeconds *int    `json:"command_timeout_seconds"`
 }
 
 type fileCertConfig struct {
@@ -72,6 +80,10 @@ func defaultConfig() *models.Config {
 		NginxBackupDir:         "/var/lib/kvzd-panel/nginx-backups",
 		NginxServiceName:       "nginx",
 		NginxControlMode:       models.NginxControlModeSystemd,
+		FrpsConfigDir:          "/etc/frps",
+		FrpcConfigDir:          "/etc/frp",
+		FrpBackupDir:           "/var/lib/kvzd-panel/frp-backups",
+		FrpCommandTimeout:      10 * time.Second,
 		CertPublicDir:          "/var/cert",
 		CertSelfSignDir:        "/var/cert-self-sign",
 		NginxCommandTimeout:    10 * time.Second,
@@ -173,6 +185,20 @@ func applyFileConfig(cfg *models.Config, fc *fileConfig) {
 			cfg.NginxCommandTimeout = time.Duration(*fc.Nginx.CommandTimeoutSeconds) * time.Second
 		}
 	}
+	if fc.Frp != nil {
+		if fc.Frp.FrpsConfigDir != nil {
+			cfg.FrpsConfigDir = strings.TrimSpace(*fc.Frp.FrpsConfigDir)
+		}
+		if fc.Frp.FrpcConfigDir != nil {
+			cfg.FrpcConfigDir = strings.TrimSpace(*fc.Frp.FrpcConfigDir)
+		}
+		if fc.Frp.BackupDir != nil {
+			cfg.FrpBackupDir = strings.TrimSpace(*fc.Frp.BackupDir)
+		}
+		if fc.Frp.CommandTimeoutSeconds != nil {
+			cfg.FrpCommandTimeout = time.Duration(*fc.Frp.CommandTimeoutSeconds) * time.Second
+		}
+	}
 }
 
 func applyEnvOverrides(cfg *models.Config) error {
@@ -225,6 +251,20 @@ func applyEnvOverrides(cfg *models.Config) error {
 	} else if ok {
 		cfg.NginxCommandTimeout = time.Duration(v) * time.Second
 	}
+	if v, ok := envString("PANEL_FRP_FRPS_CONFIG_DIR"); ok {
+		cfg.FrpsConfigDir = v
+	}
+	if v, ok := envString("PANEL_FRP_FRPC_CONFIG_DIR"); ok {
+		cfg.FrpcConfigDir = v
+	}
+	if v, ok := envString("PANEL_FRP_BACKUP_DIR"); ok {
+		cfg.FrpBackupDir = v
+	}
+	if v, ok, err := envInt("PANEL_FRP_COMMAND_TIMEOUT_SECONDS"); err != nil {
+		return err
+	} else if ok {
+		cfg.FrpCommandTimeout = time.Duration(v) * time.Second
+	}
 	return nil
 }
 
@@ -259,6 +299,18 @@ func validateConfig(cfg *models.Config) error {
 	}
 	if cfg.NginxCommandTimeout <= 0 {
 		return fmt.Errorf("nginx.command_timeout_seconds must be positive")
+	}
+	if cfg.FrpsConfigDir == "" {
+		return fmt.Errorf("frp.frps_config_dir must not be empty")
+	}
+	if cfg.FrpcConfigDir == "" {
+		return fmt.Errorf("frp.frpc_config_dir must not be empty")
+	}
+	if cfg.FrpBackupDir == "" {
+		return fmt.Errorf("frp.backup_dir must not be empty")
+	}
+	if cfg.FrpCommandTimeout <= 0 {
+		return fmt.Errorf("frp.command_timeout_seconds must be positive")
 	}
 	if cfg.CertPublicDir == "" {
 		return fmt.Errorf("cert.public_dir must not be empty")

@@ -25,6 +25,8 @@ tags:
     description: CPU、内存和系统状态
   - name: nginx
     description: Nginx 状态、操作和配置管理
+  - name: frp
+    description: frpc/frps systemd 服务与 TOML 配置管理
 
 paths:
   /auth/login:
@@ -134,7 +136,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CertMutationResult'
         '400':
-          $ref: '#/components/responses/InvalidArgument'
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -161,7 +163,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CertMutationResult'
         '400':
-          $ref: '#/components/responses/InvalidArgument'
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -293,11 +295,13 @@ paths:
         '204':
           description: 更新成功
         '400':
-          $ref: '#/components/responses/InvalidArgument'
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /users:
     get:
@@ -675,6 +679,217 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+
+  /frp/services:
+    get:
+      tags: [frp]
+      summary: 获取 frp systemd 服务列表
+      description: 列出所有名称以 frp 开头、以 .service 结尾的 systemd service。
+      operationId: listFrpServices
+      responses:
+        '200':
+          description: 服务列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrpServiceList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/DependencyError'
+
+  /frp/services/{name}/actions:
+    post:
+      tags: [frp]
+      summary: 执行 frp 服务操作
+      description: |
+        对指定 frp*.service 执行 start、stop 或 restart。
+
+        如果 systemctl 命令本身执行失败，API 仍可能返回 200，但响应中的 `ok` 为 `false`。
+        参数错误、认证失败或权限不足仍返回对应 4xx。
+      operationId: executeFrpServiceAction
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: systemd service 名称，必须以 frp 开头并以 .service 结尾
+          schema:
+            type: string
+            pattern: '^frp[A-Za-z0-9_.@-]{0,120}\.service$'
+          example: frps-academic.service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FrpServiceActionRequest'
+      responses:
+        '200':
+          description: 服务操作执行结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrpServiceActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /frp/configs:
+    get:
+      tags: [frp]
+      summary: 获取 frp 配置列表（仅 admin）
+      description: 列出 frps_config_dir 与 frpc_config_dir 中的 TOML 配置。配置可能包含 token 等秘密，因此仅 admin 可用。
+      operationId: listFrpConfigs
+      responses:
+        '200':
+          description: 配置列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrpConfigList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /frp/configs/{type}:
+    post:
+      tags: [frp]
+      summary: 创建 frp TOML 配置（仅 admin）
+      operationId: createFrpConfig
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [frps, frpc]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFrpConfigRequest'
+      responses:
+        '201':
+          description: 配置创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrpConfigMutationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /frp/configs/{type}/{name}:
+    get:
+      tags: [frp]
+      summary: 读取 frp TOML 配置（仅 admin）
+      operationId: getFrpConfig
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [frps, frpc]
+        - name: name
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/FrpConfigName'
+      responses:
+        '200':
+          description: 配置内容
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrpConfigFile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [frp]
+      summary: 更新 frp TOML 配置（仅 admin）
+      operationId: updateFrpConfig
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [frps, frpc]
+        - name: name
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/FrpConfigName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFrpConfigRequest'
+      responses:
+        '200':
+          description: 配置更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrpConfigMutationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags: [frp]
+      summary: 删除 frp TOML 配置（仅 admin）
+      operationId: deleteFrpConfig
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [frps, frpc]
+        - name: name
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/FrpConfigName'
+      responses:
+        '204':
+          description: 删除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -778,6 +993,18 @@ components:
             error:
               code: RATE_LIMITED
               message: too many login attempts
+              details: {}
+
+    DependencyError:
+      description: 下游命令或系统依赖执行失败
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: DEPENDENCY_ERROR
+              message: dependency operation failed
               details: {}
 
   schemas:
@@ -1414,3 +1641,178 @@ components:
           type: string
         validation:
           $ref: '#/components/schemas/NginxValidationResult'
+
+    FrpServiceStatus:
+      type: object
+      required: [name, type, active_state, sub_state, unit_file_state, running]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [frps, frpc, other]
+        description:
+          type: string
+        active_state:
+          type: string
+        sub_state:
+          type: string
+        unit_file_state:
+          type: string
+        main_pid:
+          type: integer
+          nullable: true
+        running:
+          type: boolean
+        config_type:
+          type: string
+          enum: [frps, frpc]
+        config_name:
+          type: string
+
+    FrpServiceList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FrpServiceStatus'
+
+    FrpServiceAction:
+      type: string
+      enum: [start, stop, restart]
+
+    FrpServiceActionRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          $ref: '#/components/schemas/FrpServiceAction'
+
+    FrpServiceActionResponse:
+      type: object
+      required: [service, action, ok, exit_code, output, duration_ms, finished_at, status]
+      properties:
+        service:
+          type: string
+        action:
+          $ref: '#/components/schemas/FrpServiceAction'
+        ok:
+          type: boolean
+        exit_code:
+          type: integer
+        output:
+          type: string
+        duration_ms:
+          type: integer
+          format: int64
+        finished_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/FrpServiceStatus'
+
+    FrpConfigName:
+      type: string
+      minLength: 6
+      maxLength: 128
+      pattern: '^[A-Za-z0-9._-]+\.toml$'
+      example: frps-academic.toml
+
+    FrpConfigSummary:
+      type: object
+      required: [type, name, service_name, size_bytes, modified_at, sha256]
+      properties:
+        type:
+          type: string
+          enum: [frps, frpc]
+        name:
+          $ref: '#/components/schemas/FrpConfigName'
+        service_name:
+          type: string
+          description: 按配置文件 basename 推导的 systemd unit 名称
+        size_bytes:
+          type: integer
+          format: int64
+        modified_at:
+          type: string
+          format: date-time
+        sha256:
+          type: string
+
+    FrpConfigFile:
+      allOf:
+        - $ref: '#/components/schemas/FrpConfigSummary'
+        - type: object
+          required: [content]
+          properties:
+            content:
+              type: string
+              maxLength: 1048576
+
+    FrpConfigList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FrpConfigSummary'
+
+    FrpValidationResult:
+      type: object
+      required: [ok, output]
+      properties:
+        ok:
+          type: boolean
+        output:
+          type: string
+
+    CreateFrpConfigRequest:
+      type: object
+      required: [name, content]
+      properties:
+        name:
+          $ref: '#/components/schemas/FrpConfigName'
+        content:
+          type: string
+          maxLength: 1048576
+        validate:
+          type: boolean
+          default: true
+          description: 默认执行 frps/frpc verify -c；失败时回滚写入
+
+    UpdateFrpConfigRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          maxLength: 1048576
+        validate:
+          type: boolean
+          default: true
+        expected_sha256:
+          type: string
+          description: 可选。如果提供，必须和当前文件 sha256 一致，否则返回 409。
+
+    FrpConfigMutationResult:
+      type: object
+      required: [type, name, size_bytes, modified_at, sha256, validation]
+      properties:
+        type:
+          type: string
+          enum: [frps, frpc]
+        name:
+          $ref: '#/components/schemas/FrpConfigName'
+        size_bytes:
+          type: integer
+          format: int64
+        modified_at:
+          type: string
+          format: date-time
+        sha256:
+          type: string
+        validation:
+          $ref: '#/components/schemas/FrpValidationResult'

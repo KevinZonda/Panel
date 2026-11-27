@@ -26,6 +26,9 @@ func loadTemplates() (*template.Template, error) {
 		"derefInt":  derefInt,
 		"shortSHA":  shortSHA,
 		"seq":       seq,
+		"yesNo":     yesNo,
+		"fmtNow":    fmtNow,
+		"buildInfo": buildInfoSummary,
 	}
 	return template.New("web").Funcs(funcs).ParseFS(templatesFS, "templates/*.html")
 }
@@ -106,6 +109,10 @@ func fmtTime(v any) string {
 	return t.Local().Format("2006-01-02 15:04:05")
 }
 
+func fmtNow() string {
+	return fmtTime(time.Now())
+}
+
 func fmtUptime(seconds uint64) string {
 	d := time.Duration(seconds) * time.Second
 	days := int(d.Hours()) / 24
@@ -151,4 +158,13 @@ func seq(n int) []int {
 		items[i] = i
 	}
 	return items
+}
+
+// yesNo renders a boolean health state as colored text using pure HTML
+// presentational markup: green yes when true, red no when false.
+func yesNo(ok bool) template.HTML {
+	if ok {
+		return template.HTML(`<font color="green">yes</font>`)
+	}
+	return template.HTML(`<font color="red">no</font>`)
 }

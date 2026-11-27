@@ -26,10 +26,10 @@
 </table>
 {{if .CoreRows}}
 <h3>Per core</h3>
-<table border="1" cellpadding="6">
-<tr>{{range seq .CoreCols}}<th>#</th><th>Usage</th>{{end}}</tr>
+<table border="1">
+<tr>{{range seq .CoreCols}}<th style="padding:0 8px">#</th><th style="padding:0 8px">Usage</th>{{end}}</tr>
 {{range $row := .CoreRows}}
-<tr>{{range $cell := $row}}<td>{{$cell.Index}}</td><td>{{printf "%.1f" $cell.Percent}}%</td>{{end}}</tr>
+<tr>{{range $cell := $row}}<td style="padding:0 8px">{{$cell.Index}}</td><td style="padding:0 8px">{{printf "%.1f" $cell.Percent}}%</td>{{end}}</tr>
 {{end}}
 </table>
 {{end}}

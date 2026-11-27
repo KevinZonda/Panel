@@ -3,6 +3,7 @@ package domain
 import (
 	"github.com/KevinZonda/Panel/domain/auth"
 	"github.com/KevinZonda/Panel/domain/cert"
+	"github.com/KevinZonda/Panel/domain/frp"
 	"github.com/KevinZonda/Panel/domain/nginx"
 	"github.com/KevinZonda/Panel/domain/system"
 	"github.com/KevinZonda/Panel/domain/user"
@@ -46,6 +47,16 @@ func InitRoute(engine *gin.Engine, db *gorm.DB, cfg *models.Config) error {
 		return err
 	}
 
+	frpDomain, err := frp.New(frp.Params{
+		FrpsConfigDir:  cfg.FrpsConfigDir,
+		FrpcConfigDir:  cfg.FrpcConfigDir,
+		BackupDir:      cfg.FrpBackupDir,
+		CommandTimeout: cfg.FrpCommandTimeout,
+	})
+	if err != nil {
+		return err
+	}
+
 	if err := authDomain.InitHttp(api); err != nil {
 		return err
 	}
@@ -60,6 +71,9 @@ func InitRoute(engine *gin.Engine, db *gorm.DB, cfg *models.Config) error {
 		return err
 	}
 	if err := nginxDomain.InitHttp(api, authn, admin); err != nil {
+		return err
+	}
+	if err := frpDomain.InitHttp(api, authn, admin); err != nil {
 		return err
 	}
 
@@ -80,6 +94,7 @@ func InitRoute(engine *gin.Engine, db *gorm.DB, cfg *models.Config) error {
 		systemDomain.Service(),
 		nginxDomain.Service(),
 		certDomain.Service(),
+		frpDomain.Service(),
 	)
 	return webUI.InitRoutes(engine)
 }
