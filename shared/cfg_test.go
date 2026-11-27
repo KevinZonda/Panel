@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/KevinZonda/Panel/lib/passwordx"
 )
 
 const testBootstrapAdminHash = "$2y$10$HmAYMoZdMdMk75D9obv9SuWBf5wvD.wcZ0iLg5Zl7RvWZpXa8rgwK"
@@ -244,7 +242,7 @@ func TestConfigExampleParses(t *testing.T) {
 	}
 }
 
-func TestDockerConfigBootstrapHashMatchesDevPassword(t *testing.T) {
+func TestDockerConfigHasNoBootstrapPassword(t *testing.T) {
 	raw, err := os.ReadFile("../deploy/docker/config.json")
 	if err != nil {
 		t.Fatalf("read docker config: %v", err)
@@ -253,11 +251,8 @@ func TestDockerConfigBootstrapHashMatchesDevPassword(t *testing.T) {
 	if err := decodeJSONC(raw, &fc); err != nil {
 		t.Fatalf("decode docker config: %v", err)
 	}
-	if fc.BootstrapAdminPasswordHash == nil || *fc.BootstrapAdminPasswordHash == "" {
-		t.Fatal("docker config does not contain a dev bootstrap password hash")
-	}
-	if !passwordx.Compare(*fc.BootstrapAdminPasswordHash, "admin123456") {
-		t.Fatal("docker config bootstrap hash does not match documented dev password")
+	if fc.BootstrapAdminPasswordHash != nil || fc.LegacyBootstrapAdminPassword != nil {
+		t.Fatal("docker config contains a bootstrap password or password hash")
 	}
 }
 

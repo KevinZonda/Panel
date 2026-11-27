@@ -4,14 +4,14 @@ services:
     # tini as PID 1 reaps nginx worker zombies; nginx self-daemonizes.
     init: true
     ports:
-      - "8080:8080"   # panel UI / API
-      - "8081:80"     # nginx demo site
+      - "127.0.0.1:8080:8080"   # panel UI / API
+      - "127.0.0.1:8081:80"     # nginx demo site
     volumes:
       - panel-data:/var/lib/kvzd-panel
       - panel-certs:/var/cert
       - panel-selfsign-certs:/var/cert-self-sign
     environment:
-      # Optional bcrypt-hash override for the dev-only initial admin credential.
+      # Alternative to the interactive init command for a new database.
       PANEL_BOOTSTRAP_ADMIN_PASSWORD_HASH: ${PANEL_BOOTSTRAP_ADMIN_PASSWORD_HASH:-}
     restart: unless-stopped
 

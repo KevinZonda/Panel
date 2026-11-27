@@ -35,6 +35,9 @@ func (s *Service) EnsureBootstrapAdmin(username, passwordHash string) error {
 	if count > 0 {
 		return nil
 	}
+	if passwordHash == "" {
+		return fmt.Errorf("first admin requires a password hash; run panel init or set PANEL_BOOTSTRAP_ADMIN_PASSWORD_HASH")
+	}
 	if !validatex.ValidUsername(username) {
 		return apperr.Validationf("bootstrap admin username is invalid")
 	}

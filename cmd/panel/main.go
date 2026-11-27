@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +17,20 @@ import (
 
 func main() {
 	logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "init":
+			if err := runInit(os.Args[2:], os.Stdin, os.Stdout); err != nil {
+				logrus.WithError(err).Fatal("panel init failed")
+			}
+		case "-h", "--help":
+			fmt.Fprintln(os.Stdout, "Usage: panel [init]\nRun panel init --help for setup options.")
+		default:
+			logrus.Fatalf("unknown command %q, see panel --help", os.Args[1])
+		}
+		return
+	}
 
 	if err := shared.InitCfg(); err != nil {
 		logrus.WithError(err).Fatal("init config failed")
