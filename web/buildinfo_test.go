@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestFormatBuildInfoIncludesToolchainTargetAndVCS(t *testing.T) {
+func TestFormatBuildInfoIncludesTimeRevisionToolchainAndCompiler(t *testing.T) {
 	info := &debug.BuildInfo{
 		GoVersion: "go1.26.10",
 		Main:      debug.Module{Version: "v1.2.3"},
@@ -24,7 +24,7 @@ func TestFormatBuildInfoIncludesToolchainTargetAndVCS(t *testing.T) {
 	}
 
 	got := formatBuildInfo(info)
-	want := "go=go1.26.10; builder=gc/go1.26.10; target=linux/amd64/v3; cgo=1; mode=exe; mod=v1.2.3; rev=0123456789ab; vcs-time=2026-11-26T06:35:00Z; dirty"
+	want := "2026-11-26T06:35:00Z; 0123456789ab; go1.26.10; gc"
 	if got != want {
 		t.Fatalf("unexpected build info:\nwant: %s\ngot:  %s", want, got)
 	}
@@ -32,7 +32,7 @@ func TestFormatBuildInfoIncludesToolchainTargetAndVCS(t *testing.T) {
 
 func TestFormatBuildInfoFallsBackWithoutBuildInfo(t *testing.T) {
 	got := formatBuildInfo(nil)
-	for _, part := range []string{"go=go", "builder=", "target="} {
+	for _, part := range []string{"go", "gc"} {
 		if !strings.Contains(got, part) {
 			t.Fatalf("fallback build info missing %q: %q", part, got)
 		}

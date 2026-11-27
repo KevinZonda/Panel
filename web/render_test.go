@@ -19,7 +19,7 @@ func TestFooterRendersPanelNameTimeAndBuildInfo(t *testing.T) {
 	}
 	html := out.String()
 
-	footer := regexp.MustCompile(`<p><span>KevinZonda Panel, \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}, <i>\(go=go[^<]+builder=[^<]+target=[^<]+\)</i></span></p>`)
+	footer := regexp.MustCompile(`<span>KevinZonda Panel, \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}, <i>\([^<]*go[0-9][^<]*; gc\)</i></span>`)
 	if !footer.MatchString(html) {
 		t.Fatalf("footer does not include panel name, current time, and italic build information: %s", html)
 	}
