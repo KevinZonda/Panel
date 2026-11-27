@@ -27,6 +27,28 @@ func TestActionResultStoreRoundTrip(t *testing.T) {
 	}
 }
 
+func TestActionResultStoreKeepsRequestDataSeparate(t *testing.T) {
+	store := newActionResultStore()
+	token, err := store.put("nginx", gin.H{"Result": "ok"})
+	if err != nil {
+		t.Fatalf("put action result: %v", err)
+	}
+
+	first, ok := store.get("nginx", token)
+	if !ok {
+		t.Fatal("stored action result not found")
+	}
+	first["CSRFToken"] = "first request"
+
+	second, ok := store.get("nginx", token)
+	if !ok || second["Result"] != "ok" {
+		t.Fatalf("missing stored result: %#v", second)
+	}
+	if _, ok := second["CSRFToken"]; ok {
+		t.Fatal("render data from the first request leaked into the second request")
+	}
+}
+
 func TestActionResultStoreSeparatesKinds(t *testing.T) {
 	store := newActionResultStore()
 	token, err := store.put("nginx", gin.H{"Result": "ok"})

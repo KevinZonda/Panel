@@ -1,6 +1,7 @@
 package web
 
 import (
+	"maps"
 	"sync"
 	"time"
 
@@ -54,7 +55,8 @@ func (s *actionResultStore) get(kind, token string) (gin.H, bool) {
 		delete(s.entries, token)
 		return nil, false
 	}
-	return entry.data, true
+	// Rendering adds request-specific fields to the top-level map.
+	return maps.Clone(entry.data), true
 }
 
 func (s *actionResultStore) cleanupLocked(now time.Time) {
