@@ -23,6 +23,7 @@ func TestInitCfgLoadsJSONCConfig(t *testing.T) {
   "token_ttl_hours": 2,
   "bootstrap_admin_username": "root",
   "bootstrap_admin_password_hash": "$2y$10$HmAYMoZdMdMk75D9obv9SuWBf5wvD.wcZ0iLg5Zl7RvWZpXa8rgwK",
+  "terminal": { "enabled": true, "login_as": " ops " },
   "nginx": {
     "sites_enabled_dir": "/tmp/sites-enabled",
     "backup_dir": "/tmp/backups",
@@ -65,6 +66,9 @@ func TestInitCfgLoadsJSONCConfig(t *testing.T) {
 	}
 	if cfg.BootstrapAdminUsername != "root" || cfg.BootstrapAdminPasswordHash != testBootstrapAdminHash {
 		t.Fatalf("unexpected bootstrap config")
+	}
+	if !cfg.TerminalEnabled || cfg.TerminalLoginAs != "ops" {
+		t.Fatalf("unexpected terminal config: enabled=%t login_as=%q", cfg.TerminalEnabled, cfg.TerminalLoginAs)
 	}
 	if cfg.NginxSitesEnabledDir != "/tmp/sites-enabled" || cfg.NginxBackupDir != "/tmp/backups" {
 		t.Fatalf("unexpected nginx paths: %q %q", cfg.NginxSitesEnabledDir, cfg.NginxBackupDir)

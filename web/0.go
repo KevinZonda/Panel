@@ -9,6 +9,7 @@ import (
 	frpsvc "github.com/KevinZonda/Panel/domain/frp/svc"
 	nginxsvc "github.com/KevinZonda/Panel/domain/nginx/svc"
 	systemsvc "github.com/KevinZonda/Panel/domain/system/svc"
+	terminalsvc "github.com/KevinZonda/Panel/domain/terminal/svc"
 	usersvc "github.com/KevinZonda/Panel/domain/user/svc"
 	"github.com/gin-gonic/gin"
 	"github.com/ulule/limiter/v3"
@@ -23,6 +24,7 @@ type Web struct {
 	nginxSvc      *nginxsvc.Service
 	certSvc       *certsvc.Service
 	frpSvc        *frpsvc.Service
+	terminal      *terminalsvc.Service
 	actionResults *actionResultStore
 }
 
@@ -33,6 +35,7 @@ func New(
 	nginxSvc *nginxsvc.Service,
 	certSvc *certsvc.Service,
 	frpSvc *frpsvc.Service,
+	terminal *terminalsvc.Service,
 ) *Web {
 	return &Web{
 		authSvc:       authSvc,
@@ -41,6 +44,7 @@ func New(
 		nginxSvc:      nginxSvc,
 		certSvc:       certSvc,
 		frpSvc:        frpSvc,
+		terminal:      terminal,
 		actionResults: newActionResultStore(),
 	}
 }
@@ -86,6 +90,11 @@ func (w *Web) InitRoutes(engine *gin.Engine) error {
 	ui.POST("/password", authn, w.changePassword)
 
 	ui.GET("/system", authn, w.systemPage)
+	if w.terminal != nil {
+		if err := w.initTerminalRoutes(ui, authn, admin); err != nil {
+			return err
+		}
+	}
 
 	ui.GET("/nginx", authn, w.nginxPage)
 	ui.GET("/nginx/actions/:action", authn, admin, w.nginxActionConfirmPage)

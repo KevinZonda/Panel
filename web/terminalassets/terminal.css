@@ -1,0 +1,19 @@
+.terminal-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+#terminal-status {
+  color: #444;
+}
+
+#terminal-screen {
+  background: #111827;
+  box-sizing: border-box;
+  height: clamp(16rem, 72vh, 64rem);
+  overflow: hidden;
+  padding: 0.65rem;
+}

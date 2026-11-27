@@ -4,6 +4,8 @@ go 1.26.10
 
 require (
 	github.com/KevinZonda/GoX v0.0.22
+	github.com/coder/websocket v1.8.15
+	github.com/creack/pty v1.1.24
 	github.com/gin-contrib/cors v1.7.11
 	github.com/gin-gonic/gin v1.12.0
 	github.com/joho/godotenv v1.5.1

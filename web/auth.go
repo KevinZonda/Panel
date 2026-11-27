@@ -43,6 +43,9 @@ func (w *Web) logout(c *gin.Context) {
 	session := authctx.MustSession(c)
 	if session != nil {
 		_ = w.authSvc.Logout(session.ID)
+		if w.terminal != nil {
+			w.terminal.Disconnect(session.ID)
+		}
 	}
 	w.clearCookie(c)
 	c.Redirect(http.StatusSeeOther, "/ui/login")

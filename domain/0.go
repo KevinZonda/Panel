@@ -6,6 +6,7 @@ import (
 	"github.com/KevinZonda/Panel/domain/frp"
 	"github.com/KevinZonda/Panel/domain/nginx"
 	"github.com/KevinZonda/Panel/domain/system"
+	terminalsvc "github.com/KevinZonda/Panel/domain/terminal/svc"
 	"github.com/KevinZonda/Panel/domain/user"
 	"github.com/KevinZonda/Panel/models"
 	"github.com/KevinZonda/Panel/web"
@@ -13,7 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func InitRoute(engine *gin.Engine, db *gorm.DB, cfg *models.Config) error {
+func InitRoute(engine *gin.Engine, db *gorm.DB, cfg *models.Config, terminal *terminalsvc.Service) error {
 	api := engine.Group("/api/v1")
 
 	authDomain, err := auth.New(auth.Params{
@@ -95,6 +96,7 @@ func InitRoute(engine *gin.Engine, db *gorm.DB, cfg *models.Config) error {
 		nginxDomain.Service(),
 		certDomain.Service(),
 		frpDomain.Service(),
+		terminal,
 	)
 	return webUI.InitRoutes(engine)
 }

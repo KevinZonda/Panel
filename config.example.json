@@ -14,6 +14,13 @@
   "bootstrap_admin_username": "admin",
   "bootstrap_admin_password_hash": "",
 
+  "terminal": {
+    // Opens a local Bash session for Panel administrators. Use HTTPS in production.
+    "enabled": false,
+    // An empty value uses the Panel process identity, including root if applicable.
+    "login_as": "",
+  },
+
   "cert": {
     // Public (CA-signed) certificates: {public_dir}/{domain}/priv and pub.
     "public_dir": "/var/cert",

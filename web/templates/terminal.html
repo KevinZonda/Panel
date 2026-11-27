@@ -1,0 +1,11 @@
+{{define "terminal.html"}}
+{{template "head" .}}
+<div class="terminal-toolbar">
+  <span>System account <strong>{{.LoginAs}}</strong></span>
+  <button id="terminal-connect" type="button">Connect</button>
+  <button id="terminal-disconnect" type="button" disabled>Disconnect</button>
+  <span id="terminal-status" role="status">Disconnected</span>
+</div>
+<div id="terminal-screen" aria-label="Local Bash terminal"></div>
+{{template "foot" .}}
+{{end}}

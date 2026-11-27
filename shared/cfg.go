@@ -19,18 +19,24 @@ import (
 const DefaultConfigPath = "/etc/kvzd-panel/config.json"
 
 type fileConfig struct {
-	ListenAddr                   *string          `json:"listen_addr"`
-	DatabaseDSN                  *string          `json:"database_dsn"`
-	GinMode                      *string          `json:"gin_mode"`
-	CorsAllowedOrigins           []string         `json:"cors_allowed_origins"`
-	TrustedProxies               []string         `json:"trusted_proxies"`
-	TokenTTLHours                *int             `json:"token_ttl_hours"`
-	BootstrapAdminUsername       *string          `json:"bootstrap_admin_username"`
-	LegacyBootstrapAdminPassword *string          `json:"bootstrap_admin_password"`
-	BootstrapAdminPasswordHash   *string          `json:"bootstrap_admin_password_hash"`
-	Nginx                        *fileNginxConfig `json:"nginx"`
-	Frp                          *fileFrpConfig   `json:"frp"`
-	Cert                         *fileCertConfig  `json:"cert"`
+	ListenAddr                   *string             `json:"listen_addr"`
+	DatabaseDSN                  *string             `json:"database_dsn"`
+	GinMode                      *string             `json:"gin_mode"`
+	CorsAllowedOrigins           []string            `json:"cors_allowed_origins"`
+	TrustedProxies               []string            `json:"trusted_proxies"`
+	TokenTTLHours                *int                `json:"token_ttl_hours"`
+	BootstrapAdminUsername       *string             `json:"bootstrap_admin_username"`
+	LegacyBootstrapAdminPassword *string             `json:"bootstrap_admin_password"`
+	BootstrapAdminPasswordHash   *string             `json:"bootstrap_admin_password_hash"`
+	Nginx                        *fileNginxConfig    `json:"nginx"`
+	Frp                          *fileFrpConfig      `json:"frp"`
+	Cert                         *fileCertConfig     `json:"cert"`
+	Terminal                     *fileTerminalConfig `json:"terminal"`
+}
+
+type fileTerminalConfig struct {
+	Enabled bool   `json:"enabled"`
+	LoginAs string `json:"login_as"`
 }
 
 type fileFrpConfig struct {
@@ -164,6 +170,10 @@ func applyFileConfig(cfg *models.Config, fc *fileConfig) {
 	}
 	if fc.BootstrapAdminPasswordHash != nil {
 		cfg.BootstrapAdminPasswordHash = strings.TrimSpace(*fc.BootstrapAdminPasswordHash)
+	}
+	if fc.Terminal != nil {
+		cfg.TerminalEnabled = fc.Terminal.Enabled
+		cfg.TerminalLoginAs = strings.TrimSpace(fc.Terminal.LoginAs)
 	}
 	if fc.Cert != nil {
 		if fc.Cert.PublicDir != nil {

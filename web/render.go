@@ -46,6 +46,7 @@ func (w *Web) render(c *gin.Context, status int, page string, data gin.H) {
 		}
 	}
 	data["CSRFToken"] = csrfTokenFromCookie(c)
+	data["TerminalEnabled"] = w.terminal != nil
 	c.HTML(status, page, data)
 }
 

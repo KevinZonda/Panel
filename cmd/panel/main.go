@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/KevinZonda/Panel/domain"
+	terminalsvc "github.com/KevinZonda/Panel/domain/terminal/svc"
 	"github.com/KevinZonda/Panel/shared"
 	"github.com/sirupsen/logrus"
 )
@@ -52,7 +53,11 @@ func main() {
 		logrus.WithError(err).Fatal("get gin engine failed")
 	}
 
-	if err := domain.InitRoute(engine, db, cfg); err != nil {
+	var terminal *terminalsvc.Service
+	if cfg.TerminalEnabled {
+		terminal = terminalsvc.New(cfg.TerminalLoginAs)
+	}
+	if err := domain.InitRoute(engine, db, cfg, terminal); err != nil {
 		logrus.WithError(err).Fatal("init routes failed")
 	}
 
@@ -75,6 +80,11 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if terminal != nil {
+		if err := terminal.Shutdown(shutdownCtx); err != nil {
+			logrus.WithError(err).Error("shutdown terminal sessions failed")
+		}
+	}
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logrus.WithError(err).Error("shutdown server failed")
 	}

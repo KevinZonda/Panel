@@ -25,6 +25,8 @@ type Config struct {
 	FrpCommandTimeout          time.Duration
 	CertPublicDir              string
 	CertSelfSignDir            string
+	TerminalEnabled            bool
+	TerminalLoginAs            string
 	BootstrapAdminUsername     string
 	BootstrapAdminPasswordHash string
 }

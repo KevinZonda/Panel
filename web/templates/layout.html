@@ -5,6 +5,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} - kvzd-panel</title>
+{{if .TerminalPage}}
+<link rel="stylesheet" href="/ui/terminal/assets/vendor/xterm-6.0.0.css">
+<link rel="stylesheet" href="/ui/terminal/assets/terminal.css">
+<script defer src="/ui/terminal/assets/vendor/xterm-6.0.0.js"></script>
+<script defer src="/ui/terminal/assets/vendor/addon-fit-0.11.0.js"></script>
+<script defer src="/ui/terminal/assets/terminal.js"></script>
+{{end}}
 </head>
 <body>
 {{if .User}}
@@ -15,7 +22,7 @@
 <a href="/ui/nginx/sites">Sites</a> |
 <a href="/ui/frp">frpc/frps</a> |
 <a href="/ui/certs">Certs</a> |
-{{if eq .User.Role "admin"}}<a href="/ui/users">Users</a> |{{end}}
+{{if eq .User.Role "admin"}}{{if .TerminalEnabled}}<a href="/ui/terminal">Terminal</a> | {{end}}<a href="/ui/users">Users</a> |{{end}}
 <a href="/ui/password">Password</a> |
 <a href="/ui/logout">Logout</a>
 (signed in as {{.User.Username}}, {{.User.Role}})
