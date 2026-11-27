@@ -67,10 +67,21 @@ func csrfTokenFromCookie(c *gin.Context) string {
 	return csrfToken(token)
 }
 
-// csrfCheck validates the hidden csrf_token form field on POST requests.
-// Unlike an Origin/Host comparison this works behind any reverse proxy.
-// Requests without a session cookie pass through: they are either the
-// login POST or will be redirected to login by the auth middleware anyway.
+// loginCSRFCheck protects the login form before a session is established.
+func loginCSRFCheck() gin.HandlerFunc {
+	protection := http.NewCrossOriginProtection()
+	return func(c *gin.Context) {
+		if err := protection.Check(c.Request); err != nil {
+			c.String(http.StatusForbidden, "submit the login form from the Panel login page")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+// csrfCheck validates the session-bound token on authenticated UI POSTs.
+// Requests without a session cookie proceed to authentication.
 func csrfCheck() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.Method != http.MethodPost {

@@ -74,12 +74,14 @@ func (w *Web) InitRoutes(engine *gin.Engine) error {
 		c.Redirect(http.StatusFound, "/ui")
 	})
 
-	ui := engine.Group("/ui")
-	ui.Use(csrfCheck())
+	login := engine.Group("/ui/login", func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
+		c.Next()
+	})
+	login.GET("", w.loginPage)
+	login.POST("", loginCSRFCheck(), loginLimiter, w.login)
 
-	ui.GET("/login", w.loginPage)
-	ui.POST("/login", loginLimiter, w.login)
-
+	ui := engine.Group("/ui", csrfCheck())
 	authn := w.authRequired()
 	admin := w.adminRequired()
 
