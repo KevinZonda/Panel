@@ -21,7 +21,7 @@ type UserList struct {
 
 type CreateUserRequest struct {
 	Username string `json:"username" binding:"required,min=1,max=64"`
-	Password string `json:"password" binding:"required,min=8,max=256"`
+	Password string `json:"password" binding:"required"`
 	Role     string `json:"role" binding:"required,oneof=admin viewer"`
 	Status   string `json:"status" binding:"required,oneof=active disabled"`
 }
@@ -33,5 +33,5 @@ type UpdateUserRequest struct {
 }
 
 type ResetPasswordRequest struct {
-	NewPassword string `json:"new_password" binding:"required,min=8,max=256"`
+	NewPassword string `json:"new_password" binding:"required"`
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/KevinZonda/Panel/lib/authctx"
+	"github.com/KevinZonda/Panel/lib/passwordx"
 	"github.com/gin-gonic/gin"
 )
 
@@ -65,10 +66,10 @@ func (w *Web) changePassword(c *gin.Context) {
 
 	oldPassword := c.PostForm("old_password")
 	newPassword := c.PostForm("new_password")
-	if len(newPassword) < 8 {
+	if err := passwordx.ValidatePassword(newPassword); err != nil {
 		w.render(c, http.StatusOK, "password.html", gin.H{
 			"Title": "Change Password",
-			"Error": "new password must be at least 8 characters",
+			"Error": err.Error(),
 		})
 		return
 	}

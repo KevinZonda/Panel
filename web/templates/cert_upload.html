@@ -22,8 +22,8 @@
 <h3>Private key (priv)</h3>
 <p>
 <label for="priv">PEM content</label><br>
-<textarea id="priv" name="priv" rows="12" cols="80" required placeholder="-----BEGIN PRIVATE KEY-----">{{.Priv}}</textarea><br>
-<small>must match the certificate; stored with 0600 permissions, only admins can view it afterwards</small>
+<textarea id="priv" name="priv" rows="12" cols="80" required placeholder="-----BEGIN PRIVATE KEY-----"></textarea><br>
+<small>must match the certificate; stored with 0600 permissions; for security it is not restored after validation errors</small>
 </p>
 
 <p><button type="submit">Add certificate</button></p>

@@ -9,7 +9,25 @@ import (
 
 var bcryptHashPattern = regexp.MustCompile(`^\$2[abxy]\$(0[4-9]|[12][0-9]|3[01])\$[./A-Za-z0-9]{53}$`)
 
+const (
+	MinPasswordBytes = 8
+	MaxPasswordBytes = 72
+)
+
+func ValidatePassword(password string) error {
+	if len(password) < MinPasswordBytes {
+		return fmt.Errorf("password must be at least %d bytes", MinPasswordBytes)
+	}
+	if len(password) > MaxPasswordBytes {
+		return fmt.Errorf("password must be at most %d bytes", MaxPasswordBytes)
+	}
+	return nil
+}
+
 func Hash(password string) (string, error) {
+	if err := ValidatePassword(password); err != nil {
+		return "", err
+	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err

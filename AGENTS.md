@@ -1,5 +1,10 @@
 开发规范 @spec/go.md.
 
+
+## 权限
+
+- viewer/admin 权限矩阵见 @spec/permissions.md；新增或调整能力前先更新矩阵，并确保 UI/API 后端授权一致
+
 ## 验证命令
 
 - 格式化：`gofmt -w cmd models shared lib domain`

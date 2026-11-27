@@ -12,6 +12,7 @@ type CertFileInfo struct {
 	SizeBytes  int64     `json:"size_bytes"`
 	ModifiedAt time.Time `json:"modified_at"`
 	IsPrivate  bool      `json:"is_private"`
+	IsPublic   bool      `json:"is_public"`
 }
 
 type CertSummary struct {

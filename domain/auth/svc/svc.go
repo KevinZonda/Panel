@@ -165,6 +165,9 @@ func (s *Service) ChangePassword(userID uint, currentSessionID uint, oldPassword
 			return apperr.ErrInvalidCredentials
 		}
 
+		if err := passwordx.ValidatePassword(newPassword); err != nil {
+			return apperr.Validationf("%s", err)
+		}
 		hash, err := passwordx.Hash(newPassword)
 		if err != nil {
 			return err

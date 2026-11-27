@@ -29,8 +29,8 @@
 <form method="post" action="/ui/users/{{.Target.ID}}/reset-password">
 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <p>
-<label for="new_password">New password (min 8 characters)</label><br>
-<input type="password" id="new_password" name="new_password" required minlength="8">
+<label for="new_password">New password (8-72 bytes)</label><br>
+<input type="password" id="new_password" name="new_password" required>
 </p>
 <p><button type="submit">Reset password</button></p>
 </form>

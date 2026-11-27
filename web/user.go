@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/KevinZonda/Panel/lib/authctx"
+	"github.com/KevinZonda/Panel/lib/passwordx"
 	"github.com/KevinZonda/Panel/models/apimod"
 	"github.com/gin-gonic/gin"
 )
@@ -27,8 +28,8 @@ func (w *Web) createUser(c *gin.Context) {
 		Role:     c.PostForm("role"),
 		Status:   c.PostForm("status"),
 	}
-	if len(req.Password) < 8 {
-		w.renderUserListWithError(c, "password must be at least 8 characters")
+	if err := passwordx.ValidatePassword(req.Password); err != nil {
+		w.renderUserListWithError(c, err.Error())
 		return
 	}
 	if _, err := w.userSvc.CreateUser(req); err != nil {
@@ -108,8 +109,8 @@ func (w *Web) resetUserPassword(c *gin.Context) {
 		return
 	}
 	newPassword := c.PostForm("new_password")
-	if len(newPassword) < 8 {
-		w.renderUserPageWithError(c, uint(id), "new password must be at least 8 characters")
+	if err := passwordx.ValidatePassword(newPassword); err != nil {
+		w.renderUserPageWithError(c, uint(id), err.Error())
 		return
 	}
 	if err := w.userSvc.ResetPassword(uint(id), newPassword); err != nil {

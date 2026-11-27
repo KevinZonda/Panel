@@ -36,3 +36,32 @@ func TestValidateHash(t *testing.T) {
 		t.Fatalf("expected low cost hash to be rejected, got %v", err)
 	}
 }
+
+func TestValidatePasswordUsesByteLength(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		password string
+		valid    bool
+	}{
+		{"too short", "1234567", false},
+		{"minimum", "12345678", true},
+		{"maximum", strings.Repeat("a", 72), true},
+		{"too long", strings.Repeat("a", 73), false},
+		{"multibyte maximum", strings.Repeat("中", 24), true},
+		{"multibyte too long", strings.Repeat("中", 25), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidatePassword(tc.password)
+			if tc.valid && err != nil {
+				t.Fatalf("expected valid password, got %v", err)
+			}
+			if !tc.valid && err == nil {
+				t.Fatal("expected invalid password")
+			}
+		})
+	}
+
+	if _, err := Hash(strings.Repeat("a", 73)); err == nil {
+		t.Fatal("expected overlong password to be rejected before bcrypt")
+	}
+}

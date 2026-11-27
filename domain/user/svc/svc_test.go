@@ -3,6 +3,7 @@ package svc_test
 import (
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/KevinZonda/Panel/domain/user/svc"
@@ -56,6 +57,32 @@ func TestLastAdminAndDeleteProtection(t *testing.T) {
 	}
 	if err := service.DeleteUser(admin.ID, admin.ID); !errors.Is(err, apperr.ErrConflict) {
 		t.Fatalf("expected self delete conflict, got %v", err)
+	}
+}
+
+func TestPasswordLengthValidation(t *testing.T) {
+	service := svc.NewService(newTestDB(t))
+	overlong := strings.Repeat("a", 73)
+	if _, err := service.CreateUser(apimod.CreateUserRequest{
+		Username: "viewer",
+		Password: overlong,
+		Role:     models.RoleViewer,
+		Status:   models.UserStatusActive,
+	}); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected create validation error, got %v", err)
+	}
+
+	user, err := service.CreateUser(apimod.CreateUserRequest{
+		Username: "viewer",
+		Password: "password123",
+		Role:     models.RoleViewer,
+		Status:   models.UserStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("create viewer: %v", err)
+	}
+	if err := service.ResetPassword(user.ID, overlong); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected reset validation error, got %v", err)
 	}
 }
 

@@ -6,7 +6,11 @@ import (
 	"regexp"
 	"sort"
 	"time"
+
+	"github.com/KevinZonda/Panel/lib/filex"
 )
+
+const MaxFileBytes = 1024 * 1024
 
 var validName = regexp.MustCompile(`^[A-Za-z0-9._-]{1,128}$`)
 
@@ -75,7 +79,7 @@ func ReadFile(root, domain, name string) ([]byte, error) {
 	if !ValidName(domain) || !ValidName(name) {
 		return nil, os.ErrInvalid
 	}
-	return os.ReadFile(filepath.Join(root, domain, name))
+	return filex.ReadFileLimited(filepath.Join(root, domain, name), MaxFileBytes)
 }
 
 // WriteFile atomically writes a file inside the domain directory,
@@ -88,24 +92,7 @@ func WriteFile(root, domain, name string, content []byte, perm os.FileMode) erro
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(dir, ".tmp-*")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
-	if _, err := tmp.Write(content); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Chmod(perm); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmpName, filepath.Join(dir, name))
+	return filex.WriteFileAtomic(filepath.Join(dir, name), content, perm)
 }
 
 func DeleteDomain(root, domain string) error {

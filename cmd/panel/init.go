@@ -252,8 +252,8 @@ func (w initWizard) passwordHash() (string, error) {
 		return "", fmt.Errorf("read administrator password: %w", err)
 	}
 	defer clear(password)
-	if len(password) < 8 || len(password) > 72 {
-		return "", fmt.Errorf("administrator password must be 8-72 bytes")
+	if err := passwordx.ValidatePassword(string(password)); err != nil {
+		return "", fmt.Errorf("administrator password is invalid: %w", err)
 	}
 	fmt.Fprint(w.output, "Confirm administrator password: ")
 	confirmation, err := w.readPassword()

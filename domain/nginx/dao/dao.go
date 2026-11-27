@@ -11,6 +11,11 @@ import (
 	"github.com/KevinZonda/Panel/models/apimod"
 )
 
+const (
+	maxSiteFileBytes = 1024 * 1024
+	backupRetention  = 50
+)
+
 var siteNamePattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,128}$`)
 
 func ValidSiteName(name string) bool {
@@ -33,7 +38,7 @@ func ListSites(dir string) ([]apimod.NginxSiteSummary, error) {
 		if err != nil {
 			continue
 		}
-		content, err := os.ReadFile(path)
+		sha256, err := filex.SHA256File(path)
 		if err != nil {
 			continue
 		}
@@ -41,7 +46,7 @@ func ListSites(dir string) ([]apimod.NginxSiteSummary, error) {
 			Name:       entry.Name(),
 			SizeBytes:  info.Size(),
 			ModifiedAt: info.ModTime(),
-			SHA256:     cryptox.SHA256(content),
+			SHA256:     sha256,
 		})
 	}
 	return items, nil
@@ -49,7 +54,7 @@ func ListSites(dir string) ([]apimod.NginxSiteSummary, error) {
 
 func ReadSite(dir, name string) (*apimod.NginxSite, error) {
 	path := filepath.Join(dir, name)
-	content, err := os.ReadFile(path)
+	content, err := filex.ReadFileLimited(path, maxSiteFileBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -132,5 +137,11 @@ func BackupSite(backupDir, name string, content []byte) (string, error) {
 	}
 	filename := name + "." + time.Now().UTC().Format("20060102150405.000000000") + ".bak"
 	path := filepath.Join(backupDir, filename)
-	return path, filex.WriteFileAtomic(path, content, 0o600)
+	if err := filex.WriteFileAtomic(path, content, 0o600); err != nil {
+		return "", err
+	}
+	if err := filex.PruneFiles(backupDir, name+".", ".bak", backupRetention); err != nil {
+		return "", err
+	}
+	return path, nil
 }

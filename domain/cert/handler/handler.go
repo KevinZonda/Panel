@@ -4,7 +4,9 @@ import (
 	"net/http"
 
 	"github.com/KevinZonda/Panel/domain/cert/svc"
+	"github.com/KevinZonda/Panel/lib/authctx"
 	"github.com/KevinZonda/Panel/lib/httpx"
+	"github.com/KevinZonda/Panel/models"
 	"github.com/KevinZonda/Panel/models/apimod"
 	"github.com/gin-gonic/gin"
 )
@@ -36,7 +38,16 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) ReadFile(c *gin.Context) {
-	content, _, err := h.svc.ReadFile(c.Param("type"), c.Param("name"), c.Param("file"))
+	certType := c.Param("type")
+	file := c.Param("file")
+	if !svc.IsPublicFile(certType, file) {
+		user := authctx.MustUser(c)
+		if user == nil || user.Role != models.RoleAdmin {
+			httpx.Forbidden(c, "permission denied: admin role required to read this certificate file")
+			return
+		}
+	}
+	content, _, err := h.svc.ReadFile(certType, c.Param("name"), file)
 	if err != nil {
 		httpx.ServiceError(c, err)
 		return

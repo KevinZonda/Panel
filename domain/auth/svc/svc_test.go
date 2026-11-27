@@ -3,6 +3,7 @@ package svc_test
 import (
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,6 +75,24 @@ func TestEnsureBootstrapAdminRejectsInvalidHash(t *testing.T) {
 	service := svc.NewService(newTestDB(t), time.Hour)
 	if err := service.EnsureBootstrapAdmin("admin", "not-a-bcrypt-hash"); err == nil {
 		t.Fatal("expected invalid bootstrap hash error")
+	}
+}
+
+func TestChangePasswordRejectsOverlongPassword(t *testing.T) {
+	service := svc.NewService(newTestDB(t), time.Hour)
+	bootstrapHash, err := passwordx.Hash("password123")
+	if err != nil {
+		t.Fatalf("hash bootstrap password: %v", err)
+	}
+	if err := service.EnsureBootstrapAdmin("admin", bootstrapHash); err != nil {
+		t.Fatalf("bootstrap admin: %v", err)
+	}
+	login, err := service.Login("admin", "password123")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+	if err := service.ChangePassword(login.User.ID, 0, "password123", strings.Repeat("a", 73)); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected validation error, got %v", err)
 	}
 }
 

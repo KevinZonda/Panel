@@ -12,6 +12,11 @@ import (
 	"github.com/KevinZonda/Panel/models/apimod"
 )
 
+const (
+	maxConfigFileBytes = 1024 * 1024
+	backupRetention    = 50
+)
+
 var configNamePattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,128}$`)
 
 func ValidConfigName(name string) bool {
@@ -41,18 +46,18 @@ func ListConfigs(dir, configType string) ([]apimod.FrpConfigSummary, error) {
 		if err != nil {
 			continue
 		}
-		content, err := os.ReadFile(path)
+		sha256, err := filex.SHA256File(path)
 		if err != nil {
 			continue
 		}
-		items = append(items, summary(configType, entry.Name(), info, content))
+		items = append(items, summary(configType, entry.Name(), info, sha256))
 	}
 	return items, nil
 }
 
 func ReadConfig(dir, configType, name string) (*apimod.FrpConfigFile, error) {
 	path := filepath.Join(dir, name)
-	content, err := os.ReadFile(path)
+	content, err := filex.ReadFileLimited(path, maxConfigFileBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +66,7 @@ func ReadConfig(dir, configType, name string) (*apimod.FrpConfigFile, error) {
 		return nil, err
 	}
 	return &apimod.FrpConfigFile{
-		FrpConfigSummary: summary(configType, name, info, content),
+		FrpConfigSummary: summary(configType, name, info, cryptox.SHA256(content)),
 		Content:          string(content),
 	}, nil
 }
@@ -90,7 +95,7 @@ func WriteConfig(dir, configType, name, content string) (*apimod.FrpConfigSummar
 	if err != nil {
 		return nil, err
 	}
-	item := summary(configType, name, info, []byte(content))
+	item := summary(configType, name, info, cryptox.SHA256Str(content))
 	return &item, nil
 }
 
@@ -127,16 +132,22 @@ func BackupConfig(backupDir, configType, name string, content []byte) (string, e
 	}
 	filename := name + "." + time.Now().UTC().Format("20060102150405.000000000") + ".bak"
 	path := filepath.Join(dir, filename)
-	return path, filex.WriteFileAtomic(path, content, 0o600)
+	if err := filex.WriteFileAtomic(path, content, 0o600); err != nil {
+		return "", err
+	}
+	if err := filex.PruneFiles(dir, name+".", ".bak", backupRetention); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
-func summary(configType, name string, info os.FileInfo, content []byte) apimod.FrpConfigSummary {
+func summary(configType, name string, info os.FileInfo, sha256 string) apimod.FrpConfigSummary {
 	return apimod.FrpConfigSummary{
 		Type:        configType,
 		Name:        name,
 		ServiceName: ServiceNameForConfig(name),
 		SizeBytes:   info.Size(),
 		ModifiedAt:  info.ModTime(),
-		SHA256:      cryptox.SHA256(content),
+		SHA256:      sha256,
 	}
 }

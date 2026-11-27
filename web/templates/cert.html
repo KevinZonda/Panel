@@ -27,7 +27,7 @@
 <td>{{.SizeBytes}} B</td>
 <td>{{fmtTime .ModifiedAt}}</td>
 <td>
-{{if .IsPrivate}}{{if eq $.User.Role "admin"}}<a href="/ui/certs/{{$.Cert.Type}}/{{$.Cert.Name}}?file={{.Name}}">view</a>{{else}}admin only{{end}}{{else}}<a href="/ui/certs/{{$.Cert.Type}}/{{$.Cert.Name}}?file={{.Name}}">view</a>{{end}}
+{{if or .IsPublic (eq $.User.Role "admin")}}<a href="/ui/certs/{{$.Cert.Type}}/{{$.Cert.Name}}?file={{.Name}}">view</a>{{else}}admin only{{end}}
 </td>
 </tr>
 {{end}}

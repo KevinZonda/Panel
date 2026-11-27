@@ -228,7 +228,8 @@ paths:
   /certs/{type}/{name}/files/{file}:
     get:
       tags: [cert]
-      summary: 读取证书文件内容（仅 admin）
+      summary: 读取证书文件内容
+      description: viewer 仅可读取明确公开的证书文件（pub/server.crt/ca.crt）；私钥和未知文件仅 admin 可读取。
       operationId: readCertFile
       parameters:
         - name: type
@@ -1119,8 +1120,7 @@ components:
           format: password
         new_password:
           type: string
-          minLength: 8
-          maxLength: 256
+          description: 8-72 个 UTF-8 字节；JSON Schema length 按字符计数，精确字节限制由服务端执行
           format: password
 
     CreateUserRequest:
@@ -1134,8 +1134,7 @@ components:
           pattern: '^[A-Za-z0-9._-]+$'
         password:
           type: string
-          minLength: 8
-          maxLength: 256
+          description: 8-72 个 UTF-8 字节；JSON Schema length 按字符计数，精确字节限制由服务端执行
           format: password
         role:
           $ref: '#/components/schemas/UserRole'
@@ -1161,8 +1160,7 @@ components:
       properties:
         new_password:
           type: string
-          minLength: 8
-          maxLength: 256
+          description: 8-72 个 UTF-8 字节；JSON Schema length 按字符计数，精确字节限制由服务端执行
           format: password
 
     LoadAverage:
@@ -1280,7 +1278,7 @@ components:
 
     CertFileInfo:
       type: object
-      required: [name, size_bytes, modified_at, is_private]
+      required: [name, size_bytes, modified_at, is_private, is_public]
       properties:
         name:
           type: string
@@ -1292,6 +1290,9 @@ components:
         is_private:
           type: boolean
           description: 是否为私钥文件
+        is_public:
+          type: boolean
+          description: 是否对 viewer 公开
 
     CertSummary:
       type: object

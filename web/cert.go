@@ -39,7 +39,6 @@ func (w *Web) uploadPublic(c *gin.Context) {
 			"Error": errorMessage(err),
 			"Name":  name,
 			"Pub":   pub,
-			"Priv":  priv,
 		})
 		return
 	}
@@ -115,11 +114,10 @@ func (w *Web) certPage(c *gin.Context) {
 	// files are only reachable for admins because this whole branch is
 	// guarded in the template and re-checked server-side below.
 	if file := c.Query("file"); file != "" {
-		content, isPrivate, err := w.certSvc.ReadFile(certType, name, file)
-		if err != nil {
+		if !certsvc.IsPublicFile(certType, file) && !isAdmin(c) {
+			data["Error"] = "permission denied: admin role required to view this certificate file"
+		} else if content, _, err := w.certSvc.ReadFile(certType, name, file); err != nil {
 			data["Error"] = errorMessage(err)
-		} else if isPrivate && !isAdmin(c) {
-			data["Error"] = "permission denied: admin role required to view private keys"
 		} else {
 			data["FileName"] = file
 			data["FileContent"] = string(content)

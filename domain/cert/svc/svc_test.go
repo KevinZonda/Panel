@@ -193,8 +193,13 @@ func TestListAndGet(t *testing.T) {
 			keyFile = &detail.Files[i]
 		}
 	}
-	if keyFile == nil || !keyFile.IsPrivate {
-		t.Fatal("server.key must be marked private")
+	if keyFile == nil || !keyFile.IsPrivate || keyFile.IsPublic {
+		t.Fatal("server.key must be marked private and not public")
+	}
+	for _, file := range detail.Files {
+		if (file.Name == "server.crt" || file.Name == "ca.crt") && !file.IsPublic {
+			t.Fatalf("%s must be marked public", file.Name)
+		}
 	}
 }
 

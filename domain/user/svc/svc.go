@@ -71,6 +71,9 @@ func (s *Service) CreateUser(req apimod.CreateUserRequest) (*dbmod.User, error) 
 		return nil, err
 	}
 
+	if err := passwordx.ValidatePassword(req.Password); err != nil {
+		return nil, apperr.Validationf("%s", err)
+	}
 	hash, err := passwordx.Hash(req.Password)
 	if err != nil {
 		return nil, err
@@ -179,6 +182,9 @@ func (s *Service) ResetPassword(targetID uint, newPassword string) error {
 				return apperr.NotFoundf("user not found")
 			}
 			return err
+		}
+		if err := passwordx.ValidatePassword(newPassword); err != nil {
+			return apperr.Validationf("%s", err)
 		}
 		hash, err := passwordx.Hash(newPassword)
 		if err != nil {

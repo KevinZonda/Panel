@@ -15,8 +15,6 @@ import (
 	"github.com/KevinZonda/Panel/models/apimod"
 )
 
-const maxCertFileBytes = 1024 * 1024
-
 type Service struct {
 	publicDir   string
 	selfSignDir string
@@ -46,6 +44,17 @@ func primaryFile(certType string) string {
 		return "pub"
 	}
 	return "server.crt"
+}
+
+func IsPublicFile(certType, file string) bool {
+	switch certType {
+	case apimod.CertTypePublic:
+		return file == "pub"
+	case apimod.CertTypeSelfSign:
+		return file == "server.crt" || file == "ca.crt"
+	default:
+		return false
+	}
 }
 
 func privateFiles(certType string) map[string]bool {
@@ -123,6 +132,7 @@ func (s *Service) Get(certType, name string) (*apimod.CertDetail, error) {
 			SizeBytes:  f.SizeBytes,
 			ModifiedAt: f.ModifiedAt,
 			IsPrivate:  priv[f.Name],
+			IsPublic:   IsPublicFile(certType, f.Name),
 		})
 	}
 	return detail, nil
@@ -157,11 +167,11 @@ func (s *Service) CreatePublicCert(name, pub, priv string) (*apimod.CertMutation
 	if !dao.ValidName(name) {
 		return nil, apperr.Validationf("cert name is invalid")
 	}
-	if len(pub) == 0 || len(pub) > maxCertFileBytes {
-		return nil, apperr.Validationf("pub must be 1-%d bytes", maxCertFileBytes)
+	if len(pub) == 0 || len(pub) > dao.MaxFileBytes {
+		return nil, apperr.Validationf("pub must be 1-%d bytes", dao.MaxFileBytes)
 	}
-	if len(priv) == 0 || len(priv) > maxCertFileBytes {
-		return nil, apperr.Validationf("priv must be 1-%d bytes", maxCertFileBytes)
+	if len(priv) == 0 || len(priv) > dao.MaxFileBytes {
+		return nil, apperr.Validationf("priv must be 1-%d bytes", dao.MaxFileBytes)
 	}
 	if err := validatePEM("pub", pub); err != nil {
 		return nil, err
@@ -252,8 +262,8 @@ func (s *Service) UploadFile(certType, name, file, content string) error {
 	if len(content) == 0 {
 		return apperr.Validationf("content must not be empty")
 	}
-	if len(content) > maxCertFileBytes {
-		return apperr.Validationf("content exceeds %d bytes", maxCertFileBytes)
+	if len(content) > dao.MaxFileBytes {
+		return apperr.Validationf("content exceeds %d bytes", dao.MaxFileBytes)
 	}
 	if err := validatePEM(file, content); err != nil {
 		return err
