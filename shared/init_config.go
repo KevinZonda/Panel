@@ -24,6 +24,10 @@ func MarshalInitialConfig(cfg *models.Config) ([]byte, error) {
 		"database_dsn":                  cfg.DatabaseDSN,
 		"bootstrap_admin_username":      cfg.BootstrapAdminUsername,
 		"bootstrap_admin_password_hash": cfg.BootstrapAdminPasswordHash,
+		"terminal": fileTerminalConfig{
+			Enabled: cfg.TerminalEnabled,
+			LoginAs: cfg.TerminalLoginAs,
+		},
 		"nginx": map[string]string{
 			"backup_dir":   cfg.NginxBackupDir,
 			"control_mode": cfg.NginxControlMode,

@@ -95,13 +95,45 @@ func (w initWizard) run(profile, configPath string) error {
 	if docker {
 		cfg.ListenAddr = ":8080"
 		cfg.NginxControlMode = models.NginxControlModeBinary
-	} else {
+		fmt.Fprintln(w.output, "Use :PORT to listen on the container interfaces. Docker must publish that port for host access.")
+	}
+	cfg.ListenAddr, err = w.ask("Panel listen address", cfg.ListenAddr)
+	if err != nil {
+		return err
+	}
+	_, port, err := net.SplitHostPort(cfg.ListenAddr)
+	listenPort, portErr := strconv.ParseUint(port, 10, 16)
+	if err != nil || portErr != nil || listenPort == 0 {
+		return fmt.Errorf("listen address must include a numeric port, such as 127.0.0.1:8080 or :8080")
+	}
+	if !docker {
 		dataDir, err = w.configureHost(cfg)
 		if err != nil {
 			return err
 		}
 		if dataDir == configPath || strings.HasPrefix(dataDir, configPath+string(os.PathSeparator)) {
 			return fmt.Errorf("data directory and its parents must be separate from the configuration file")
+		}
+	}
+
+	fmt.Fprintln(w.output, "Web Terminal gives Panel administrators access to a Bash shell.")
+	terminalChoice, err := w.choose("Enable web Terminal?", "no", "yes", "no", "y", "n")
+	if err != nil {
+		return err
+	}
+	terminalSummary := "disabled"
+	if terminalChoice == "yes" || terminalChoice == "y" {
+		cfg.TerminalEnabled = true
+		if docker {
+			fmt.Fprintln(w.output, "Use a system account inside the container. The default Panel container runs as root.")
+		}
+		cfg.TerminalLoginAs, err = w.ask("Terminal system account (blank uses the Panel process account)", "")
+		if err != nil {
+			return err
+		}
+		terminalSummary = "enabled (Panel process account)"
+		if cfg.TerminalLoginAs != "" {
+			terminalSummary = fmt.Sprintf("enabled (%s)", cfg.TerminalLoginAs)
 		}
 	}
 
@@ -121,8 +153,8 @@ func (w initWizard) run(profile, configPath string) error {
 		return err
 	}
 
-	fmt.Fprintf(w.output, "\nConfiguration file  %s\nListen address      %s\nData directory      %s\nNginx control       %s\nAdministrator       %s\n",
-		configPath, cfg.ListenAddr, dataDir, cfg.NginxControlMode, cfg.BootstrapAdminUsername)
+	fmt.Fprintf(w.output, "\nConfiguration file  %s\nListen address      %s\nData directory      %s\nNginx control       %s\nWeb Terminal        %s\nAdministrator       %s\n",
+		configPath, cfg.ListenAddr, dataDir, cfg.NginxControlMode, terminalSummary, cfg.BootstrapAdminUsername)
 	fmt.Fprintln(w.output, "The administrator credentials apply when starting with an empty database.")
 	if err := w.previewDirectories(configPath, dataDir, cfg, docker); err != nil {
 		return err
@@ -147,7 +179,11 @@ func (w initWizard) run(profile, configPath string) error {
 	fmt.Fprintf(w.output, "Configuration written to %s\n", configPath)
 	switch {
 	case docker && configPath == dockerConfigPath:
-		fmt.Fprintln(w.output, "Start from the host with docker compose up --build.")
+		command := "docker compose up --build"
+		if listenPort != 8080 {
+			command = fmt.Sprintf("PANEL_CONTAINER_PORT=%d %s", listenPort, command)
+		}
+		fmt.Fprintf(w.output, "Start from the host with %s.\n", command)
 	case docker:
 		fmt.Fprintln(w.output, "Mount the file into the container and set its PANEL_CONFIG to the mounted path.")
 	default:
@@ -157,22 +193,13 @@ func (w initWizard) run(profile, configPath string) error {
 }
 
 func (w initWizard) configureHost(cfg *models.Config) (string, error) {
-	var err error
-	cfg.ListenAddr, err = w.ask("Panel listen address", cfg.ListenAddr)
-	if err != nil {
-		return "", err
-	}
-	_, port, err := net.SplitHostPort(cfg.ListenAddr)
-	number, portErr := strconv.ParseUint(port, 10, 16)
-	if err != nil || portErr != nil || number == 0 {
-		return "", fmt.Errorf("listen address must be a host and numeric port, such as 127.0.0.1:8080")
-	}
 	fmt.Fprintln(w.output, "Who manages Nginx? Choose systemd for a system service or binary for direct control by Panel.")
-	cfg.NginxControlMode, err = w.choose("Nginx control", cfg.NginxControlMode,
+	mode, err := w.choose("Nginx control", cfg.NginxControlMode,
 		models.NginxControlModeSystemd, models.NginxControlModeBinary)
 	if err != nil {
 		return "", err
 	}
+	cfg.NginxControlMode = mode
 	dir, err := w.ask("Panel data directory", shared.DefaultDataDir)
 	if err != nil {
 		return "", err
@@ -193,7 +220,10 @@ func (w initWizard) configureHost(cfg *models.Config) (string, error) {
 }
 
 func (w initWizard) ask(prompt, defaultValue string) (string, error) {
-	fmt.Fprintf(w.output, "%s [%s]: ", prompt, defaultValue)
+	if defaultValue != "" {
+		prompt += " [" + defaultValue + "]"
+	}
+	fmt.Fprintf(w.output, "%s: ", prompt)
 	line, err := w.input.ReadString('\n')
 	if err != nil {
 		return "", fmt.Errorf("read %s: %w", strings.ToLower(prompt), err)

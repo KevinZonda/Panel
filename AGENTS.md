@@ -10,6 +10,7 @@
 ## 初始化配置
 
 - 主机安装运行 `panel init`，默认写入 `/etc/kvzd-panel/config.json`。也可用 `panel init --config ./config.json`，并在向导内指定可写的数据目录
+- 向导会询问是否为管理员启用 Web Terminal，默认关闭。启用后可指定运行 Bash 的系统账号
 - 按向导输出的命令启动 Panel。配置和数据目录需要归 Panel 的运行账号所有，或由部署时设置相应权限
 
 ## 开发环境（Docker）
@@ -17,6 +18,7 @@
 - 新数据卷先运行 `docker compose run --build --rm panel init`，按提示创建 `/var/lib/kvzd-panel/config.json`，配置保存在 `panel-data` 卷中
 - `docker compose up --build` 启动完整开发环境：单容器内含 panel + nginx
 - panel UI/API 在 `127.0.0.1:8080`，nginx demo 站点在 `127.0.0.1:8081`
+- 若向导里将容器监听端口改为 `9090`，用 `PANEL_CONTAINER_PORT=9090 docker compose up --build` 启动，宿主机仍通过 `127.0.0.1:8080` 访问
 - 自动化启动可以通过 `PANEL_BOOTSTRAP_ADMIN_PASSWORD_HASH` 提供初始管理员的 bcrypt 哈希，可用 `htpasswd -nBC 10 admin` 生成
 - 旧数据卷继续使用数据库里的管理员账号。曾使用默认密码的账号应在面板里修改密码
 - 容器内无 systemd，nginx 使用 `control_mode: binary`（`nginx -s` 信号控制）

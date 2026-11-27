@@ -19,11 +19,13 @@ func TestInitWizardWritesConfigForStartup(t *testing.T) {
 			root := t.TempDir()
 			path := filepath.Join(root, "etc", "config.json")
 			dataDir := filepath.Join(root, "panel data")
-			answers := "maintainer\nyes\n"
-			listenAddr, nginxMode := ":8080", "binary"
+			answers := ":9090\nyes\nwww-data\nmaintainer\nyes\n"
+			listenAddr, nginxMode := ":9090", "binary"
+			terminalEnabled, terminalAccount := true, "www-data"
 			if profile == "host" {
 				listenAddr, nginxMode = "127.0.0.1:8080", "systemd"
-				answers = "\n\n" + dataDir + "\n" + answers
+				terminalEnabled, terminalAccount = false, ""
+				answers = "\n\n" + dataDir + "\n\nmaintainer\nyes\n"
 			}
 
 			const password = "example passphrase"
@@ -59,6 +61,9 @@ func TestInitWizardWritesConfigForStartup(t *testing.T) {
 			if cfg.ListenAddr != listenAddr || cfg.NginxControlMode != nginxMode {
 				t.Fatalf("unexpected listen address or Nginx mode: %s, %s", cfg.ListenAddr, cfg.NginxControlMode)
 			}
+			if cfg.TerminalEnabled != terminalEnabled || cfg.TerminalLoginAs != terminalAccount {
+				t.Fatalf("unexpected Terminal config: enabled = %t, login_as = %q", cfg.TerminalEnabled, cfg.TerminalLoginAs)
+			}
 			if cfg.BootstrapAdminUsername != "maintainer" || !passwordx.Compare(cfg.BootstrapAdminPasswordHash, password) {
 				t.Fatal("generated config did not preserve the administrator credentials")
 			}
@@ -85,7 +90,7 @@ func TestInitWizardCancellationLeavesFilesystemUntouched(t *testing.T) {
 	dataDir := filepath.Join(root, "data")
 	configDir := filepath.Join(root, "etc")
 	wizard := initWizard{
-		input:        bufio.NewReader(strings.NewReader("\n\n" + dataDir + "\n\n\n")),
+		input:        bufio.NewReader(strings.NewReader("\n\n" + dataDir + "\n\n\n\n")),
 		output:       &bytes.Buffer{},
 		readPassword: func() ([]byte, error) { return []byte("example passphrase"), nil },
 	}
