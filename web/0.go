@@ -17,12 +17,13 @@ import (
 )
 
 type Web struct {
-	authSvc   *authsvc.Service
-	userSvc   *usersvc.Service
-	systemSvc *systemsvc.Service
-	nginxSvc  *nginxsvc.Service
-	certSvc   *certsvc.Service
-	frpSvc    *frpsvc.Service
+	authSvc       *authsvc.Service
+	userSvc       *usersvc.Service
+	systemSvc     *systemsvc.Service
+	nginxSvc      *nginxsvc.Service
+	certSvc       *certsvc.Service
+	frpSvc        *frpsvc.Service
+	actionResults *actionResultStore
 }
 
 func New(
@@ -34,16 +35,20 @@ func New(
 	frpSvc *frpsvc.Service,
 ) *Web {
 	return &Web{
-		authSvc:   authSvc,
-		userSvc:   userSvc,
-		systemSvc: systemSvc,
-		nginxSvc:  nginxSvc,
-		certSvc:   certSvc,
-		frpSvc:    frpSvc,
+		authSvc:       authSvc,
+		userSvc:       userSvc,
+		systemSvc:     systemSvc,
+		nginxSvc:      nginxSvc,
+		certSvc:       certSvc,
+		frpSvc:        frpSvc,
+		actionResults: newActionResultStore(),
 	}
 }
 
 func (w *Web) InitRoutes(engine *gin.Engine) error {
+	if w.actionResults == nil {
+		w.actionResults = newActionResultStore()
+	}
 	tmpl, err := loadTemplates()
 	if err != nil {
 		return fmt.Errorf("load web templates: %w", err)
@@ -85,6 +90,7 @@ func (w *Web) InitRoutes(engine *gin.Engine) error {
 	ui.GET("/nginx", authn, w.nginxPage)
 	ui.GET("/nginx/actions/:action", authn, admin, w.nginxActionConfirmPage)
 	ui.POST("/nginx/actions", authn, admin, w.nginxAction)
+	ui.GET("/nginx/action-results/:id", authn, admin, w.nginxActionResultPage)
 	ui.POST("/nginx/test", authn, w.nginxTestConfig)
 
 	ui.GET("/nginx/sites", authn, w.siteListPage)
@@ -102,6 +108,7 @@ func (w *Web) InitRoutes(engine *gin.Engine) error {
 	ui.POST("/frp/configs/:type/:name/delete", authn, admin, w.deleteFrpConfig)
 	ui.GET("/frp/services/:name/actions/:action", authn, admin, w.frpServiceActionConfirmPage)
 	ui.POST("/frp/services/:name/actions", authn, admin, w.frpServiceAction)
+	ui.GET("/frp/action-results/:id", authn, admin, w.frpServiceActionResultPage)
 
 	ui.GET("/certs", authn, w.certListPage)
 	ui.GET("/certs/public", authn, admin, w.uploadPublicPage)

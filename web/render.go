@@ -60,6 +60,21 @@ func redirectMsg(c *gin.Context, path, msg string) {
 	c.Redirect(http.StatusSeeOther, path+"?msg="+url.QueryEscape(msg))
 }
 
+func errorHTTPStatus(err error) int {
+	switch {
+	case errors.Is(err, apperr.ErrValidation):
+		return http.StatusBadRequest
+	case errors.Is(err, apperr.ErrNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, apperr.ErrConflict):
+		return http.StatusConflict
+	case errors.Is(err, apperr.ErrForbidden):
+		return http.StatusForbidden
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
 func errorMessage(err error) string {
 	switch {
 	case errors.Is(err, apperr.ErrInvalidCredentials):

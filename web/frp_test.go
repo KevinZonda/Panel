@@ -2,13 +2,52 @@ package web
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	frpsvc "github.com/KevinZonda/Panel/domain/frp/svc"
 	"github.com/KevinZonda/Panel/models/apimod"
 	"github.com/gin-gonic/gin"
 )
+
+func TestFrpServiceActionRedirectsToStoredResult(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	root := t.TempDir()
+	service := frpsvc.NewService(root, root, root, time.Second, successExecutor{})
+	w := &Web{frpSvc: service, actionResults: newActionResultStore()}
+
+	form := url.Values{"action": {"restart"}}
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/ui/frp/services/frps-academic.service/actions", strings.NewReader(form.Encode()))
+	c.Request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	c.Params = gin.Params{{Key: "name", Value: "frps-academic.service"}}
+
+	w.frpServiceAction(c)
+	if c.Writer.Status() != http.StatusSeeOther {
+		t.Fatalf("expected status %d, got %d", http.StatusSeeOther, c.Writer.Status())
+	}
+	location := recorder.Header().Get("Location")
+	if !strings.HasPrefix(location, "/ui/frp/action-results/") {
+		t.Fatalf("unexpected redirect location: %q", location)
+	}
+	token := strings.TrimPrefix(location, "/ui/frp/action-results/")
+	data, ok := w.actionResults.get("frp", token)
+	if !ok {
+		t.Fatal("redirect token does not resolve to a stored frp result")
+	}
+	result, ok := data["Result"].(*apimod.FrpServiceActionResponse)
+	if !ok || result == nil {
+		t.Fatalf("stored data does not contain frp action result: %#v", data)
+	}
+	if result.Service != "frps-academic.service" || result.Action != "restart" {
+		t.Fatalf("unexpected action result: %#v", result)
+	}
+}
 
 func TestFrpRoutesRegister(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -65,6 +104,29 @@ func TestFrpTemplatesRender(t *testing.T) {
 			if !strings.Contains(html, want) {
 				t.Fatalf("frp index missing %q", want)
 			}
+		}
+	})
+
+	t.Run("viewer does not get config links", func(t *testing.T) {
+		var out bytes.Buffer
+		err := tmpl.ExecuteTemplate(&out, "frp.html", map[string]any{
+			"Title":     "frpc/frps Management",
+			"User":      map[string]string{"Username": "viewer", "Role": "viewer"},
+			"CSRFToken": "csrf",
+			"Services":  []apimod.FrpServiceStatus{service},
+		})
+		if err != nil {
+			t.Fatalf("render viewer frp index: %v", err)
+		}
+		html := out.String()
+		if strings.Contains(html, "/ui/frp/configs/frps/frps-academic.toml") {
+			t.Fatal("viewer sees an admin-only frp config link")
+		}
+		if !strings.Contains(html, "frps-academic.toml") {
+			t.Fatal("viewer does not see config name as plain text")
+		}
+		if strings.Contains(html, "<th>Actions</th>") || strings.Contains(html, "Create config") {
+			t.Fatal("viewer sees admin-only frp controls")
 		}
 	})
 

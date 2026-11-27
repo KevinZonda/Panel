@@ -7,7 +7,7 @@
 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <button type="submit">Yes, delete</button>
 </form>
+<p><a href="/ui/frp/configs/{{.Config.Type}}/{{.Config.Name}}">Cancel</a></p>
 {{end}}
 
-<p><a href="/ui/frp">Back to frpc/frps management</a></p>
 {{template "foot" .}}

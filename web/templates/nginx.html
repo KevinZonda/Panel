@@ -27,15 +27,15 @@
 <h2>Actions</h2>
 <table>
 <tr>
-<td><form method="get" action="/ui/nginx/actions/start"><button type="submit">Start</button></form></td>
-<td><form method="get" action="/ui/nginx/actions/stop"><button type="submit">Stop</button></form></td>
+<td><a href="/ui/nginx/actions/start">Start</a></td>
+<td><a href="/ui/nginx/actions/stop">Stop</a></td>
 <td>
 <form method="post" action="/ui/nginx/actions">
 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <button type="submit" name="action" value="reload">Reload</button>
 </form>
 </td>
-<td><form method="get" action="/ui/nginx/actions/restart"><button type="submit">Restart</button></form></td>
+<td><a href="/ui/nginx/actions/restart">Restart</a></td>
 </tr>
 </table>
 <p><small>start, stop and restart ask for confirmation; reload is graceful and applies immediately</small></p>

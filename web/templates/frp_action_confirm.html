@@ -1,13 +1,13 @@
 {{template "head" .}}
 
 <p>Are you sure you want to <strong>{{.Action}}</strong> service <strong>{{.Service}}</strong>?</p>
-{{if eq .Action "restart"}}<p>Active frp tunnels served by this process may disconnect briefly.</p>{{end}}
-{{if eq .Action "stop"}}<p>Active frp tunnels served by this process will stop working.</p>{{end}}
+{{if eq .Action "restart"}}<p><font color="red">Warning: active frp tunnels served by this process may disconnect briefly.</font></p>{{end}}
+{{if eq .Action "stop"}}<p><font color="red">Warning: active frp tunnels served by this process will stop working.</font></p>{{end}}
 <form method="post" action="/ui/frp/services/{{.Service}}/actions">
 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 <input type="hidden" name="action" value="{{.Action}}">
 <button type="submit">Yes, {{.Action}}</button>
 </form>
 
-<p><a href="/ui/frp">Back to frpc/frps management</a></p>
+<p><a href="/ui/frp">Cancel</a></p>
 {{template "foot" .}}

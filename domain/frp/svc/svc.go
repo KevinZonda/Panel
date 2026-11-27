@@ -77,6 +77,22 @@ func (s *Service) ListServices(ctx context.Context) (*apimod.FrpServiceList, err
 	return &apimod.FrpServiceList{Items: items}, nil
 }
 
+func (s *Service) GetService(ctx context.Context, name string) (*apimod.FrpServiceStatus, error) {
+	if !validServiceName(name) {
+		return nil, apperr.Validationf("frp service name is invalid")
+	}
+	services, err := s.ListServices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for i := range services.Items {
+		if services.Items[i].Name == name {
+			return &services.Items[i], nil
+		}
+	}
+	return nil, apperr.NotFoundf("frp service not found")
+}
+
 func (s *Service) serviceStatus(ctx context.Context, name, fallbackUnitFileState string) apimod.FrpServiceStatus {
 	status := apimod.FrpServiceStatus{
 		Name:          name,

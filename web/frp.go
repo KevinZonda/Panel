@@ -120,6 +120,10 @@ func (w *Web) frpServiceActionConfirmPage(c *gin.Context) {
 		w.renderError(c, http.StatusNotFound, "unknown action")
 		return
 	}
+	if _, err := w.frpSvc.GetService(c.Request.Context(), name); err != nil {
+		w.renderError(c, errorHTTPStatus(err), errorMessage(err))
+		return
+	}
 	w.render(c, http.StatusOK, "frp_action_confirm.html", gin.H{
 		"Title":   "Confirm frp service " + action,
 		"Service": name,
@@ -131,17 +135,29 @@ func (w *Web) frpServiceAction(c *gin.Context) {
 	name := c.Param("name")
 	action := c.PostForm("action")
 	resp, err := w.frpSvc.ServiceAction(c.Request.Context(), name, action)
+	data := gin.H{
+		"Title":   "frp Service Action",
+		"Service": name,
+		"Action":  action,
+	}
 	if err != nil {
-		w.render(c, http.StatusOK, "frp_action_result.html", gin.H{
-			"Title":   "frp Service Action",
-			"Service": name,
-			"Action":  action,
-			"Error":   errorMessage(err),
-		})
+		data["Error"] = errorMessage(err)
+	} else {
+		data["Result"] = resp
+	}
+	id, err := w.actionResults.put("frp", data)
+	if err != nil {
+		w.renderError(c, http.StatusInternalServerError, "failed to store action result")
 		return
 	}
-	w.render(c, http.StatusOK, "frp_action_result.html", gin.H{
-		"Title":  "frp Service Action",
-		"Result": resp,
-	})
+	c.Redirect(http.StatusSeeOther, "/ui/frp/action-results/"+id)
+}
+
+func (w *Web) frpServiceActionResultPage(c *gin.Context) {
+	data, ok := w.actionResults.get("frp", c.Param("id"))
+	if !ok {
+		w.renderError(c, http.StatusNotFound, "frp action result not found or expired")
+		return
+	}
+	w.render(c, http.StatusOK, "frp_action_result.html", data)
 }

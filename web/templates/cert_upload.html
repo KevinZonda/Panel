@@ -2,8 +2,6 @@
 
 <p><a href="/ui/certs">&lt; Back to certificates</a></p>
 
-{{if .Error}}<p><strong>Error: {{.Error}}</strong></p>{{end}}
-
 <form method="post" action="/ui/certs/public">
 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 

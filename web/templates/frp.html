@@ -14,7 +14,7 @@
 <td>{{.SubState}}</td>
 <td>{{derefInt .MainPID}}</td>
 <td>{{.UnitFileState}}</td>
-<td>{{if .ConfigName}}<a href="/ui/frp/configs/{{.ConfigType}}/{{.ConfigName}}">{{.ConfigName}}</a>{{else}}-{{end}}</td>
+<td>{{if .ConfigName}}{{if eq $.User.Role "admin"}}<a href="/ui/frp/configs/{{.ConfigType}}/{{.ConfigName}}">{{.ConfigName}}</a>{{else}}{{.ConfigName}}{{end}}{{else}}-{{end}}</td>
 <td>{{.Description}}</td>
 {{if eq $.User.Role "admin"}}
 <td>

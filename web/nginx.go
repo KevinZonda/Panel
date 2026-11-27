@@ -41,18 +41,30 @@ func (w *Web) nginxActionConfirmPage(c *gin.Context) {
 func (w *Web) nginxAction(c *gin.Context) {
 	action := c.PostForm("action")
 	resp, err := w.nginxSvc.Action(c.Request.Context(), action)
+	data := gin.H{
+		"Title":  "Nginx Action",
+		"Action": action,
+	}
 	if err != nil {
-		w.render(c, http.StatusOK, "nginx_action_result.html", gin.H{
-			"Title":  "Nginx Action",
-			"Action": action,
-			"Error":  errorMessage(err),
-		})
+		data["Error"] = errorMessage(err)
+	} else {
+		data["Result"] = resp
+	}
+	id, err := w.actionResults.put("nginx", data)
+	if err != nil {
+		w.renderError(c, http.StatusInternalServerError, "failed to store action result")
 		return
 	}
-	w.render(c, http.StatusOK, "nginx_action_result.html", gin.H{
-		"Title":  "Nginx Action",
-		"Result": resp,
-	})
+	c.Redirect(http.StatusSeeOther, "/ui/nginx/action-results/"+id)
+}
+
+func (w *Web) nginxActionResultPage(c *gin.Context) {
+	data, ok := w.actionResults.get("nginx", c.Param("id"))
+	if !ok {
+		w.renderError(c, http.StatusNotFound, "nginx action result not found or expired")
+		return
+	}
+	w.render(c, http.StatusOK, "nginx_action_result.html", data)
 }
 
 func (w *Web) siteListPage(c *gin.Context) {
@@ -122,8 +134,11 @@ func (w *Web) updateSite(c *gin.Context) {
 		w.render(c, http.StatusOK, "site.html", data)
 		return
 	}
-	_ = result
-	redirectMsg(c, "/ui/nginx/sites/"+name, "site updated, validation ok")
+	message := "site updated"
+	if validate && result.Validation.OK {
+		message = "site updated, validation ok"
+	}
+	redirectMsg(c, "/ui/nginx/sites/"+name, message)
 }
 
 func (w *Web) deleteSitePage(c *gin.Context) {

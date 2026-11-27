@@ -206,6 +206,20 @@ func TestListServicesParsesSystemdUnits(t *testing.T) {
 	if list.Items[2].Type != apimod.FrpTypeClient {
 		t.Fatalf("expected frpc type, got %#v", list.Items[2])
 	}
+
+	serviceStatus, err := service.GetService(context.Background(), "frps-academic.service")
+	if err != nil {
+		t.Fatalf("get service: %v", err)
+	}
+	if serviceStatus.Name != "frps-academic.service" || !serviceStatus.Running {
+		t.Fatalf("unexpected service status: %#v", serviceStatus)
+	}
+	if _, err := service.GetService(context.Background(), "frps-missing.service"); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("expected missing service error, got %v", err)
+	}
+	if _, err := service.GetService(context.Background(), "not-frp.service"); !errors.Is(err, apperr.ErrValidation) {
+		t.Fatalf("expected invalid service error, got %v", err)
+	}
 }
 
 func TestServiceActionUsesSystemctl(t *testing.T) {

@@ -40,3 +40,26 @@ func TestCertReplaceFormsIncludeCSRFToken(t *testing.T) {
 		t.Fatalf("replace form did not render")
 	}
 }
+
+func TestCertFormErrorRendersOnce(t *testing.T) {
+	tmpl, err := loadTemplates()
+	if err != nil {
+		t.Fatalf("load templates: %v", err)
+	}
+
+	for _, page := range []string{"cert_upload.html", "cert_generate.html"} {
+		var out bytes.Buffer
+		data := map[string]any{
+			"Title":   "Certificate form",
+			"Error":   "validation failed",
+			"Subject": defaultSubject(),
+			"Days":    30,
+		}
+		if err := tmpl.ExecuteTemplate(&out, page, data); err != nil {
+			t.Fatalf("render %s: %v", page, err)
+		}
+		if count := strings.Count(out.String(), "Error:"); count != 1 {
+			t.Fatalf("%s renders error %d times, want once", page, count)
+		}
+	}
+}

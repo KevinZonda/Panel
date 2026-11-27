@@ -13,7 +13,6 @@
 <tr><th>SHA256</th><td><code>{{.Config.SHA256}}</code></td></tr>
 </table>
 
-{{if eq .User.Role "admin"}}
 <h2>Edit</h2>
 <form method="post" action="/ui/frp/configs/{{.Config.Type}}/{{.Config.Name}}">
 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
@@ -30,10 +29,6 @@
 
 <h2>Delete</h2>
 <p><a href="/ui/frp/configs/{{.Config.Type}}/{{.Config.Name}}/delete">Delete this config</a></p>
-{{else}}
-<h2>Content</h2>
-<pre>{{.Content}}</pre>
-{{end}}
 {{end}}
 
 {{template "foot" .}}
