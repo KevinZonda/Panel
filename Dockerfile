@@ -12,7 +12,7 @@ RUN apt-get update \
     && mkdir -p /var/lib/kvzd-panel /etc/kvzd-panel /var/cert /var/cert-self-sign
 
 COPY --from=build /out/panel /usr/local/bin/panel
-COPY deploy/docker/config.json /etc/kvzd-panel/config.json
+COPY deploy/docker/config.json /usr/local/share/kvzd-panel/docker-defaults.json
 COPY deploy/docker/entrypoint.sh /entrypoint.sh
 COPY deploy/docker/index.html /var/www/html/index.html
 RUN chmod +x /entrypoint.sh

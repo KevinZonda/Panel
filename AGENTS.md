@@ -15,7 +15,8 @@
 
 ## 开发环境（Docker）
 
-- 新数据卷先运行 `docker compose run --build --rm panel init`，按提示创建 `/var/lib/kvzd-panel/config.json`，配置保存在 `panel-data` 卷中
+- 新部署先运行 `docker compose run --build --rm panel init`，按提示创建 `/etc/kvzd-panel/config.json`，配置保存在 `panel-config` 卷中
+- Docker 启动时会将旧版向导生成的 `/var/lib/kvzd-panel/config.json` 复制到缺失的配置路径。SQLite 和备份位于 `panel-data` 卷
 - `docker compose up --build` 启动完整开发环境：单容器内含 panel + nginx
 - panel UI/API 在 `127.0.0.1:8080`，nginx demo 站点在 `127.0.0.1:8081`
 - 若向导里将容器监听端口改为 `9090`，用 `PANEL_CONTAINER_PORT=9090 docker compose up --build` 启动，宿主机仍通过 `127.0.0.1:8080` 访问

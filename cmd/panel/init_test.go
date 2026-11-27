@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,21 @@ import (
 	"github.com/KevinZonda/Panel/lib/passwordx"
 	"github.com/KevinZonda/Panel/shared"
 )
+
+func TestDockerInitDefaultsToSystemConfigPath(t *testing.T) {
+	t.Setenv("PANEL_CONFIG", "")
+	var output bytes.Buffer
+	wizard := initWizard{
+		input:  bufio.NewReader(strings.NewReader("")),
+		output: &output,
+	}
+	if err := wizard.run("docker", ""); !errors.Is(err, io.EOF) {
+		t.Fatalf("expected end of input at the configuration prompt, got %v", err)
+	}
+	if !strings.Contains(output.String(), "Configuration file [/etc/kvzd-panel/config.json]") {
+		t.Fatalf("unexpected Docker configuration prompt: %q", output.String())
+	}
+}
 
 func TestInitWizardWritesConfigForStartup(t *testing.T) {
 	for _, profile := range []string{"host", "docker"} {

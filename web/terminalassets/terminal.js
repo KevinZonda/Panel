@@ -7,7 +7,30 @@
     disableStdin: true,
     cursorBlink: true,
     scrollback: 2000,
-    theme: { background: '#111827', foreground: '#e5e7eb' },
+    theme: {
+      background: '#ffffff',
+      foreground: '#000000',
+      cursor: '#000000',
+      cursorAccent: '#ffffff',
+      selectionBackground: '#add6ff',
+      // ANSI palette from the xterm.js demo's Light theme.
+      black: '#000000',
+      red: '#cd3131',
+      green: '#00bc00',
+      yellow: '#949800',
+      blue: '#0451a5',
+      magenta: '#bc05bc',
+      cyan: '#0598bc',
+      white: '#555555',
+      brightBlack: '#666666',
+      brightRed: '#cd3131',
+      brightGreen: '#14ce14',
+      brightYellow: '#b5ba00',
+      brightBlue: '#0451a5',
+      brightMagenta: '#bc05bc',
+      brightCyan: '#0598bc',
+      brightWhite: '#a5a5a5',
+    },
   });
   const fit = new FitAddon.FitAddon();
   const encoder = new TextEncoder();

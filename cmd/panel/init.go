@@ -22,8 +22,6 @@ import (
 	"golang.org/x/term"
 )
 
-const dockerConfigPath = shared.DefaultDataDir + "/config.json"
-
 type initWizard struct {
 	input        *bufio.Reader
 	output       io.Writer
@@ -71,9 +69,6 @@ func (w initWizard) run(profile, configPath string) error {
 	docker := profile == "docker"
 	if configPath == "" {
 		defaultPath := shared.DefaultConfigPath
-		if docker {
-			defaultPath = dockerConfigPath
-		}
 		if envPath := strings.TrimSpace(os.Getenv("PANEL_CONFIG")); envPath != "" {
 			defaultPath = envPath
 		}
@@ -178,7 +173,7 @@ func (w initWizard) run(profile, configPath string) error {
 	}
 	fmt.Fprintf(w.output, "Configuration written to %s\n", configPath)
 	switch {
-	case docker && configPath == dockerConfigPath:
+	case docker && configPath == shared.DefaultConfigPath:
 		command := "docker compose up --build"
 		if listenPort != 8080 {
 			command = fmt.Sprintf("PANEL_CONTAINER_PORT=%d %s", listenPort, command)

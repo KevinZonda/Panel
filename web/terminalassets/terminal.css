@@ -11,9 +11,15 @@
 }
 
 #terminal-screen {
-  background: #111827;
+  --terminal-background: #fff;
+  background: var(--terminal-background);
+  border: 1px solid #d1d5db;
   box-sizing: border-box;
   height: clamp(16rem, 72vh, 64rem);
   overflow: hidden;
   padding: 0.65rem;
+}
+
+#terminal-screen .xterm-viewport {
+  background-color: var(--terminal-background);
 }
